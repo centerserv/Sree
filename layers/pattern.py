@@ -137,6 +137,47 @@ class PatternValidator(Validator):
         
         return self.model.predict_proba(data)
     
+    def fit(self, X: np.ndarray, y: np.ndarray) -> 'PatternValidator':
+        """
+        Fit the model to the data.
+        
+        Args:
+            X: Training features
+            y: Training labels
+            
+        Returns:
+            Self for chaining
+        """
+        self.model.fit(X, y)
+        self._is_trained = True
+        return self
+    
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        """
+        Get parameters for this estimator.
+        
+        Args:
+            deep: If True, will return the parameters for this estimator and
+                  contained subobjects that are estimators.
+                  
+        Returns:
+            Parameter names mapped to their values.
+        """
+        return self.model.get_params(deep=deep)
+    
+    def set_params(self, **params) -> 'PatternValidator':
+        """
+        Set the parameters of this estimator.
+        
+        Args:
+            **params: Estimator parameters.
+            
+        Returns:
+            Self for chaining.
+        """
+        self.model.set_params(**params)
+        return self
+    
     def train(self, X_train: np.ndarray, y_train: np.ndarray, 
               X_val: Optional[np.ndarray] = None, 
               y_val: Optional[np.ndarray] = None) -> Dict[str, Any]:

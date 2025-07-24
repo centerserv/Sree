@@ -355,6 +355,8 @@ def load_all_datasets(logger: logging.Logger = None) -> Dict[str, Dict[str, np.n
         X_mnist, y_mnist = loader.load_mnist()
         X_train_mnist, X_test_mnist, y_train_mnist, y_test_mnist = loader.preprocess_data(X_mnist, y_mnist)
         datasets["mnist"] = {
+            "X": X_mnist,
+            "y": y_mnist,
             "X_train": X_train_mnist,
             "X_test": X_test_mnist,
             "y_train": y_train_mnist,
@@ -366,6 +368,8 @@ def load_all_datasets(logger: logging.Logger = None) -> Dict[str, Dict[str, np.n
         X_heart, y_heart = loader.load_heart()
         X_train_heart, X_test_heart, y_train_heart, y_test_heart = loader.preprocess_data(X_heart, y_heart)
         datasets["heart"] = {
+            "X": X_heart,
+            "y": y_heart,
             "X_train": X_train_heart,
             "X_test": X_test_heart,
             "y_train": y_train_heart,
@@ -377,6 +381,8 @@ def load_all_datasets(logger: logging.Logger = None) -> Dict[str, Dict[str, np.n
         X_synth, y_synth = loader.create_synthetic()
         X_train_synth, X_test_synth, y_train_synth, y_test_synth = loader.preprocess_data(X_synth, y_synth)
         datasets["synthetic"] = {
+            "X": X_synth,
+            "y": y_synth,
             "X_train": X_train_synth,
             "X_test": X_test_synth,
             "y_train": y_train_synth,
@@ -384,9 +390,11 @@ def load_all_datasets(logger: logging.Logger = None) -> Dict[str, Dict[str, np.n
             "info": loader.get_dataset_info(X_synth, y_synth)
         }
         
-        logger.info("All datasets loaded successfully")
+        if logger:
+            logger.info("All datasets loaded successfully")
         return datasets
         
     except Exception as e:
-        logger.error(f"Failed to load datasets: {e}")
+        if logger:
+            logger.error(f"Failed to load datasets: {e}")
         raise 

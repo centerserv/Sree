@@ -90,14 +90,14 @@ DATASET_CONFIG = {
 # Model configuration
 MODEL_CONFIG = {
     "mlp": {
-        "hidden_layer_sizes": (200, 100, 50),  # Deeper network for better performance
-        "max_iter": 500,  # More iterations for convergence
+        "hidden_layer_sizes": (300, 150, 75),  # Even deeper network for better performance
+        "max_iter": 1000,  # More iterations for convergence
         "random_state": 42,
         "early_stopping": True,
         "validation_fraction": 0.1,
-        "learning_rate_init": 0.005,  # Lower learning rate for stability
-        "alpha": 0.0001,  # L2 regularization
-        "tol": 1e-4,  # Tolerance for convergence
+        "learning_rate_init": 0.001,  # Lower learning rate for stability
+        "alpha": 0.00001,  # Less L2 regularization for better fit
+        "tol": 1e-5,  # Lower tolerance for convergence
         "activation": "relu",  # ReLU activation
         "solver": "adam"  # Adam optimizer
     }
