@@ -186,7 +186,7 @@ def run_multiple_tests(dataset_name: str, dataset_data: dict, n_tests: int = 8) 
             "final_accuracy": float(results.get('final_accuracy', 0)),
             "final_trust": float(results.get('final_trust', 0)),
             "block_count": int(permanence_stats.get('total_blocks', 0)),
-            "entropy": float(presence_stats.get('avg_entropy', 0)),
+            "entropy": float(presence_stats.get('mean_entropy', 0)),
             "converged": bool(results.get('converged', False))
         }
         

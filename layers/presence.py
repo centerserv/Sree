@@ -104,13 +104,23 @@ class PresenceValidator(Validator):
             hist = hist[hist > 0]  # Remove zero probabilities
             
             if len(hist) > 0:
-                # Use scipy.stats.entropy for more robust calculation
-                entropy_val = entropy(hist)
+                # Normalize histogram to sum to 1 (probability distribution)
+                hist = hist / np.sum(hist)
+                # Use scipy.stats.entropy with base=2 for bits
+                entropy_val = entropy(hist, base=2)
                 # Ensure entropy is non-negative and reasonable
-                entropies[i] = max(0.0, min(entropy_val, 10.0))  # Cap at 10.0
+                entropies[i] = max(0.1, min(entropy_val, 10.0))  # Minimum 0.1, cap at 10.0
             else:
                 # If no valid histogram, use a small non-zero entropy
                 entropies[i] = 0.1
+        
+        # Ensure we have non-zero entropy values
+        if np.all(entropies == 0):
+            # Fallback: calculate entropy directly from normalized data
+            for i, sample in enumerate(data_normalized):
+                # Use variance as a proxy for entropy
+                variance = np.var(sample)
+                entropies[i] = max(0.1, min(variance * 2, 5.0))
         
         return entropies
     

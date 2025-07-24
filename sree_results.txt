@@ -1,23 +1,23 @@
 ================================================================================
 SREE PHASE 1 RESULTS - CLIENT REPORT
 ================================================================================
-Generated: 2025-07-24 22:34:03
+Generated: 2025-07-24 22:46:38
 Dataset: heart
 Tests Run: 15
 
 PERFORMANCE SUMMARY:
 ----------------------------------------
 Accuracy: 0.9722 ± 0.0200
-Trust Score: 0.8834 ± 0.0310
+Trust Score: 0.8829 ± 0.0314
 Block Count: 4.0 ± 0.0
-Entropy: 0.0000 ± 0.0000
+Entropy: 3.5805 ± 0.0275
 Cross-Validation: 0.9615 ± 0.0101
 
 VARIATION ANALYSIS:
 ----------------------------------------
 Variation Reduced: ~8% → 2.00%
 Accuracy Range: 0.9231 - 1.0000
-Trust Range: 0.8095 - 0.9118
+Trust Range: 0.8071 - 0.9115
 Block Count Range: 4 - 4
 
 OUTLIER ANALYSIS:
@@ -52,21 +52,21 @@ Medical Outlier Summary:
 
 INDIVIDUAL TEST RESULTS:
 ----------------------------------------
-Test 1: Acc=0.9670, Trust=0.8506, Blocks=4, Entropy=0.0000
-Test 2: Acc=1.0000, Trust=0.9041, Blocks=4, Entropy=0.0000
-Test 3: Acc=0.9890, Trust=0.9111, Blocks=4, Entropy=0.0000
-Test 4: Acc=0.9780, Trust=0.9118, Blocks=4, Entropy=0.0000
-Test 5: Acc=1.0000, Trust=0.9091, Blocks=4, Entropy=0.0000
-Test 6: Acc=0.9780, Trust=0.9060, Blocks=4, Entropy=0.0000
-Test 7: Acc=0.9231, Trust=0.8095, Blocks=4, Entropy=0.0000
-Test 8: Acc=0.9890, Trust=0.9022, Blocks=4, Entropy=0.0000
-Test 9: Acc=0.9780, Trust=0.9011, Blocks=4, Entropy=0.0000
-Test 10: Acc=0.9560, Trust=0.8602, Blocks=4, Entropy=0.0000
-Test 11: Acc=0.9670, Trust=0.8570, Blocks=4, Entropy=0.0000
-Test 12: Acc=0.9780, Trust=0.9068, Blocks=4, Entropy=0.0000
-Test 13: Acc=0.9451, Trust=0.8521, Blocks=4, Entropy=0.0000
-Test 14: Acc=0.9560, Trust=0.8595, Blocks=4, Entropy=0.0000
-Test 15: Acc=0.9780, Trust=0.9106, Blocks=4, Entropy=0.0000
+Test 1: Acc=0.9670, Trust=0.8501, Blocks=4, Entropy=3.5768
+Test 2: Acc=1.0000, Trust=0.9036, Blocks=4, Entropy=3.5139
+Test 3: Acc=0.9890, Trust=0.9105, Blocks=4, Entropy=3.5657
+Test 4: Acc=0.9780, Trust=0.9115, Blocks=4, Entropy=3.5778
+Test 5: Acc=1.0000, Trust=0.9087, Blocks=4, Entropy=3.5736
+Test 6: Acc=0.9780, Trust=0.9057, Blocks=4, Entropy=3.5673
+Test 7: Acc=0.9231, Trust=0.8071, Blocks=4, Entropy=3.5856
+Test 8: Acc=0.9890, Trust=0.9016, Blocks=4, Entropy=3.5819
+Test 9: Acc=0.9780, Trust=0.9005, Blocks=4, Entropy=3.5927
+Test 10: Acc=0.9560, Trust=0.8599, Blocks=4, Entropy=3.5604
+Test 11: Acc=0.9670, Trust=0.8565, Blocks=4, Entropy=3.6468
+Test 12: Acc=0.9780, Trust=0.9066, Blocks=4, Entropy=3.5967
+Test 13: Acc=0.9451, Trust=0.8516, Blocks=4, Entropy=3.5852
+Test 14: Acc=0.9560, Trust=0.8589, Blocks=4, Entropy=3.5691
+Test 15: Acc=0.9780, Trust=0.9105, Blocks=4, Entropy=3.6135
 
 ================================================================================
 END OF REPORT
