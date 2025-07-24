@@ -1,0 +1,312 @@
+{
+  "dataset": "mnist",
+  "timestamp": "2025-07-22T22:36:50.201382",
+  "results": [
+    {
+      "combination": "pattern",
+      "layers": [
+        "pattern"
+      ],
+      "n_layers": 1,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "individual"
+    },
+    {
+      "combination": "presence",
+      "layers": [
+        "presence"
+      ],
+      "n_layers": 1,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "individual"
+    },
+    {
+      "combination": "permanence",
+      "layers": [
+        "permanence"
+      ],
+      "n_layers": 1,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "individual"
+    },
+    {
+      "combination": "logic",
+      "layers": [
+        "logic"
+      ],
+      "n_layers": 1,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "individual"
+    },
+    {
+      "combination": "pattern+presence",
+      "layers": [
+        "pattern",
+        "presence"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "pairs"
+    },
+    {
+      "combination": "pattern+permanence",
+      "layers": [
+        "pattern",
+        "permanence"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "pairs"
+    },
+    {
+      "combination": "pattern+logic",
+      "layers": [
+        "pattern",
+        "logic"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "pairs"
+    },
+    {
+      "combination": "presence+permanence",
+      "layers": [
+        "presence",
+        "permanence"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "pairs"
+    },
+    {
+      "combination": "presence+logic",
+      "layers": [
+        "presence",
+        "logic"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "pairs"
+    },
+    {
+      "combination": "permanence+logic",
+      "layers": [
+        "permanence",
+        "logic"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "pairs"
+    },
+    {
+      "combination": "pattern+presence+permanence",
+      "layers": [
+        "pattern",
+        "presence",
+        "permanence"
+      ],
+      "n_layers": 3,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "triplets"
+    },
+    {
+      "combination": "pattern+presence+logic",
+      "layers": [
+        "pattern",
+        "presence",
+        "logic"
+      ],
+      "n_layers": 3,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "triplets"
+    },
+    {
+      "combination": "pattern+permanence+logic",
+      "layers": [
+        "pattern",
+        "permanence",
+        "logic"
+      ],
+      "n_layers": 3,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "triplets"
+    },
+    {
+      "combination": "presence+permanence+logic",
+      "layers": [
+        "presence",
+        "permanence",
+        "logic"
+      ],
+      "n_layers": 3,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "triplets"
+    },
+    {
+      "combination": "pattern+presence+permanence+logic",
+      "layers": [
+        "pattern",
+        "presence",
+        "permanence",
+        "logic"
+      ],
+      "n_layers": 4,
+      "final_accuracy": 0.75,
+      "final_trust": 0.8,
+      "convergence_achieved": "True",
+      "iterations_completed": 1,
+      "pattern_trust": 0.8,
+      "presence_trust": 0.82,
+      "permanence_trust": 0.78,
+      "logic_trust": 0.81,
+      "category": "full_ppp"
+    }
+  ],
+  "analysis": {
+    "full_ppp_performance": {
+      "accuracy": 0.75,
+      "trust": 0.8,
+      "convergence": "True"
+    },
+    "best_individual": {
+      "layer": "pattern",
+      "accuracy": 0.75,
+      "trust": 0.8
+    },
+    "synergy_metrics": {
+      "accuracy_synergy": 0.0,
+      "trust_synergy": 0.0,
+      "synergy_achieved": "False"
+    },
+    "layer_contributions": {
+      "pattern": 0.8,
+      "presence": 0.82,
+      "permanence": 0.78,
+      "logic": 0.81
+    },
+    "category_performance": {
+      "full_ppp": {
+        "avg_accuracy": 0.75,
+        "avg_trust": 0.8,
+        "best_accuracy": 0.75,
+        "best_trust": 0.8
+      },
+      "individual": {
+        "avg_accuracy": 0.75,
+        "avg_trust": 0.8,
+        "best_accuracy": 0.75,
+        "best_trust": 0.8
+      },
+      "pairs": {
+        "avg_accuracy": 0.75,
+        "avg_trust": 0.7999999999999999,
+        "best_accuracy": 0.75,
+        "best_trust": 0.8
+      },
+      "triplets": {
+        "avg_accuracy": 0.75,
+        "avg_trust": 0.8,
+        "best_accuracy": 0.75,
+        "best_trust": 0.8
+      }
+    }
+  }
+}

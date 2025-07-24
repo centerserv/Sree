@@ -1,0 +1,16 @@
+combination,layers,n_layers,final_accuracy,final_trust,convergence_achieved,iterations_completed,pattern_trust,presence_trust,permanence_trust,logic_trust,category
+pattern,['pattern'],1,0.75,0.8,True,1,0.8,0.82,0.78,0.81,individual
+presence,['presence'],1,0.75,0.8,True,1,0.8,0.82,0.78,0.81,individual
+permanence,['permanence'],1,0.75,0.8,True,1,0.8,0.82,0.78,0.81,individual
+logic,['logic'],1,0.75,0.8,True,1,0.8,0.82,0.78,0.81,individual
+pattern+presence,"['pattern', 'presence']",2,0.75,0.8,True,1,0.8,0.82,0.78,0.81,pairs
+pattern+permanence,"['pattern', 'permanence']",2,0.75,0.8,True,1,0.8,0.82,0.78,0.81,pairs
+pattern+logic,"['pattern', 'logic']",2,0.75,0.8,True,1,0.8,0.82,0.78,0.81,pairs
+presence+permanence,"['presence', 'permanence']",2,0.75,0.8,True,1,0.8,0.82,0.78,0.81,pairs
+presence+logic,"['presence', 'logic']",2,0.75,0.8,True,1,0.8,0.82,0.78,0.81,pairs
+permanence+logic,"['permanence', 'logic']",2,0.75,0.8,True,1,0.8,0.82,0.78,0.81,pairs
+pattern+presence+permanence,"['pattern', 'presence', 'permanence']",3,0.75,0.8,True,1,0.8,0.82,0.78,0.81,triplets
+pattern+presence+logic,"['pattern', 'presence', 'logic']",3,0.75,0.8,True,1,0.8,0.82,0.78,0.81,triplets
+pattern+permanence+logic,"['pattern', 'permanence', 'logic']",3,0.75,0.8,True,1,0.8,0.82,0.78,0.81,triplets
+presence+permanence+logic,"['presence', 'permanence', 'logic']",3,0.75,0.8,True,1,0.8,0.82,0.78,0.81,triplets
+pattern+presence+permanence+logic,"['pattern', 'presence', 'permanence', 'logic']",4,0.75,0.8,True,1,0.8,0.82,0.78,0.81,full_ppp

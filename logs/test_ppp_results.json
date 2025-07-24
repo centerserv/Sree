@@ -1,0 +1,155 @@
+{
+  "iterations": [
+    {
+      "iteration": 1,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 2,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 3,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 4,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 5,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 6,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 7,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 8,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 9,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    },
+    {
+      "iteration": 10,
+      "pattern_trust": 0.4157564945410006,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9949999999999999,
+      "final_trust": 0.606337650635873,
+      "updated_trust": 0.7580494747123954,
+      "accuracy": 0.05,
+      "convergence": false
+    }
+  ],
+  "final_accuracy": 0.05,
+  "final_trust": 0.7580494747123954,
+  "convergence_achieved": false,
+  "convergence_iteration": -1,
+  "metadata": {
+    "timestamp": "2025-07-22T22:37:26.435882",
+    "config": {
+      "iterations": 2,
+      "gamma": 0.1,
+      "alpha": 0.1,
+      "beta": 0.4,
+      "delta": 0.2,
+      "initial_trust": 0.5,
+      "initial_state": 0.5,
+      "presence": {
+        "entropy_threshold": 2.0,
+        "min_confidence": 0.3,
+        "refinement_factor": 0.8
+      },
+      "permanence": {
+        "hash_algorithm": "sha256",
+        "block_size": 100,
+        "consistency_threshold": 0.8
+      },
+      "logic": {
+        "consistency_weight": 0.5,
+        "confidence_threshold": 0.7,
+        "max_inconsistencies": 0.2
+      }
+    },
+    "convergence_stats": {
+      "total_iterations": 10,
+      "final_trust": 0.7580494747123954,
+      "final_accuracy": 0.05,
+      "avg_trust": 0.7580494747123954,
+      "avg_accuracy": 0.05,
+      "trust_std": 0.0,
+      "accuracy_std": 0.0,
+      "convergence_achieved": false
+    }
+  }
+}

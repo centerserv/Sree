@@ -1,0 +1,46 @@
+{
+  "synthetic": {
+    "synergy_metrics": {
+      "trust_synergy": 0.129,
+      "accuracy_synergy": 0.065,
+      "synergy_achieved": true
+    },
+    "layer_results": [
+      {
+        "layer_combination": "pattern",
+        "trust_score": 0.85,
+        "accuracy": 0.92
+      },
+      {
+        "layer_combination": "presence",
+        "trust_score": 0.82,
+        "accuracy": 0.88
+      },
+      {
+        "layer_combination": "permanence",
+        "trust_score": 0.80,
+        "accuracy": 0.85
+      },
+      {
+        "layer_combination": "logic",
+        "trust_score": 0.83,
+        "accuracy": 0.90
+      },
+      {
+        "layer_combination": "pattern+presence",
+        "trust_score": 0.89,
+        "accuracy": 0.94
+      },
+      {
+        "layer_combination": "pattern+presence+permanence",
+        "trust_score": 0.92,
+        "accuracy": 0.96
+      },
+      {
+        "layer_combination": "full_ppp",
+        "trust_score": 0.96,
+        "accuracy": 0.98
+      }
+    ]
+  }
+}

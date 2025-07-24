@@ -1,0 +1,306 @@
+{
+  "clean": {
+    "accuracy": 0.9130434782608695,
+    "trust": 0.888806338122674,
+    "convergence": false,
+    "iterations": 10,
+    "pattern_trust": 0.7349052521002714,
+    "presence_trust": 1.0,
+    "permanence_trust": 1.0,
+    "logic_trust": 0.9565217391304346
+  },
+  "label_corruption": {
+    "5.0%": {
+      "corruption_info": {
+        "strategy": "random",
+        "corruption_rate": 0.05,
+        "n_corrupted": 5,
+        "n_total": 114,
+        "corrupted_indices": [
+          "80",
+          "4",
+          "40",
+          "69",
+          "10"
+        ],
+        "n_actual_corrupted": 5,
+        "actual_corruption_rate": 0.043859649122807015
+      },
+      "performance": {
+        "accuracy": 0.6956521739130435,
+        "trust": 0.889558846483878,
+        "convergence": false,
+        "iterations": 10,
+        "pattern_trust": 0.7349052521002714,
+        "presence_trust": 1.0,
+        "permanence_trust": 1.0,
+        "logic_trust": 0.9673913043478259
+      },
+      "degradation": {
+        "accuracy_loss": 0.21739130434782605,
+        "trust_loss": -0.0007525083612039962
+      }
+    },
+    "10.0%": {
+      "corruption_info": {
+        "strategy": "random",
+        "corruption_rate": 0.1,
+        "n_corrupted": 11,
+        "n_total": 114,
+        "corrupted_indices": [
+          "80",
+          "4",
+          "40",
+          "69",
+          "10",
+          "45",
+          "70",
+          "66",
+          "47",
+          "11",
+          "98"
+        ],
+        "n_actual_corrupted": 11,
+        "actual_corruption_rate": 0.09649122807017543
+      },
+      "performance": {
+        "accuracy": 0.5217391304347826,
+        "trust": 0.8901608531728411,
+        "convergence": false,
+        "iterations": 10,
+        "pattern_trust": 0.7349052521002714,
+        "presence_trust": 1.0,
+        "permanence_trust": 1.0,
+        "logic_trust": 0.9760869565217389
+      },
+      "degradation": {
+        "accuracy_loss": 0.3913043478260869,
+        "trust_loss": -0.0013545150501671488
+      }
+    },
+    "15.0%": {
+      "corruption_info": {
+        "strategy": "random",
+        "corruption_rate": 0.15,
+        "n_corrupted": 17,
+        "n_total": 114,
+        "corrupted_indices": [
+          "80",
+          "4",
+          "40",
+          "69",
+          "10",
+          "45",
+          "70",
+          "66",
+          "47",
+          "11",
+          "98",
+          "36",
+          "83",
+          "112",
+          "18",
+          "0",
+          "72"
+        ],
+        "n_actual_corrupted": 17,
+        "actual_corruption_rate": 0.14912280701754385
+      },
+      "performance": {
+        "accuracy": 0.2608695652173913,
+        "trust": 0.8910638632062858,
+        "convergence": false,
+        "iterations": 10,
+        "pattern_trust": 0.7349052521002714,
+        "presence_trust": 1.0,
+        "permanence_trust": 1.0,
+        "logic_trust": 0.9891304347826085
+      },
+      "degradation": {
+        "accuracy_loss": 0.6521739130434783,
+        "trust_loss": -0.0022575250836118776
+      }
+    },
+    "20.0%": {
+      "corruption_info": {
+        "strategy": "random",
+        "corruption_rate": 0.2,
+        "n_corrupted": 22,
+        "n_total": 114,
+        "corrupted_indices": [
+          "80",
+          "4",
+          "40",
+          "69",
+          "10",
+          "45",
+          "70",
+          "66",
+          "47",
+          "11",
+          "98",
+          "36",
+          "83",
+          "112",
+          "18",
+          "0",
+          "72",
+          "26",
+          "81",
+          "53",
+          "103",
+          "91"
+        ],
+        "n_actual_corrupted": 22,
+        "actual_corruption_rate": 0.19298245614035087
+      },
+      "performance": {
+        "accuracy": 0.13043478260869565,
+        "trust": 0.8913648665507676,
+        "convergence": false,
+        "iterations": 10,
+        "pattern_trust": 0.7349052521002714,
+        "presence_trust": 1.0,
+        "permanence_trust": 1.0,
+        "logic_trust": 0.9934782608695651
+      },
+      "degradation": {
+        "accuracy_loss": 0.7826086956521738,
+        "trust_loss": -0.002558528428093676
+      }
+    },
+    "25.0%": {
+      "corruption_info": {
+        "strategy": "random",
+        "corruption_rate": 0.25,
+        "n_corrupted": 28,
+        "n_total": 114,
+        "corrupted_indices": [
+          "80",
+          "4",
+          "40",
+          "69",
+          "10",
+          "45",
+          "70",
+          "66",
+          "47",
+          "11",
+          "98",
+          "36",
+          "83",
+          "112",
+          "18",
+          "0",
+          "72",
+          "26",
+          "81",
+          "53",
+          "103",
+          "91",
+          "12",
+          "31",
+          "67",
+          "111",
+          "108",
+          "22"
+        ],
+        "n_actual_corrupted": 28,
+        "actual_corruption_rate": 0.24561403508771928
+      },
+      "performance": {
+        "accuracy": 0.08695652173913043,
+        "trust": 0.8556952764894502,
+        "convergence": false,
+        "iterations": 10,
+        "pattern_trust": 0.65220782552269,
+        "presence_trust": 1.0,
+        "permanence_trust": 1.0,
+        "logic_trust": 0.9956521739130434
+      },
+      "degradation": {
+        "accuracy_loss": 0.826086956521739,
+        "trust_loss": 0.03311106163322375
+      }
+    }
+  },
+  "feature_corruption": {
+    "5.0%": {
+      "corruption_info": {
+        "strategy": "noise",
+        "corruption_rate": 0.05,
+        "n_corrupted_features": 1,
+        "corrupted_feature_indices": [
+          27
+        ]
+      },
+      "performance": {
+        "accuracy": 0.9130434782608695,
+        "trust": 0.8540414384521641,
+        "convergence": false,
+        "iterations": 10,
+        "pattern_trust": 0.655046100172807,
+        "presence_trust": 1.0,
+        "permanence_trust": 1.0,
+        "logic_trust": 0.9565217391304346
+      },
+      "degradation": {
+        "accuracy_loss": 0.0,
+        "trust_loss": 0.034764899670509886
+      }
+    },
+    "10.0%": {
+      "corruption_info": {
+        "strategy": "noise",
+        "corruption_rate": 0.1,
+        "n_corrupted_features": 3,
+        "corrupted_feature_indices": [
+          27,
+          15,
+          23
+        ]
+      },
+      "performance": {
+        "accuracy": 0.9130434782608695,
+        "trust": 0.8512381658458159,
+        "convergence": false,
+        "iterations": 10,
+        "pattern_trust": 0.6495793716762972,
+        "presence_trust": 1.0,
+        "permanence_trust": 1.0,
+        "logic_trust": 0.9565217391304346
+      },
+      "degradation": {
+        "accuracy_loss": 0.0,
+        "trust_loss": 0.03756817227685805
+      }
+    },
+    "15.0%": {
+      "corruption_info": {
+        "strategy": "noise",
+        "corruption_rate": 0.15,
+        "n_corrupted_features": 4,
+        "corrupted_feature_indices": [
+          27,
+          15,
+          23,
+          17
+        ]
+      },
+      "performance": {
+        "accuracy": 0.9130434782608695,
+        "trust": 0.8511711526151438,
+        "convergence": false,
+        "iterations": 10,
+        "pattern_trust": 0.649399631546412,
+        "presence_trust": 1.0,
+        "permanence_trust": 1.0,
+        "logic_trust": 0.9565217391304346
+      },
+      "degradation": {
+        "accuracy_loss": 0.0,
+        "trust_loss": 0.0376351855075302
+      }
+    }
+  }
+}

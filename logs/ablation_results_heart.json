@@ -1,0 +1,312 @@
+{
+  "dataset": "heart",
+  "timestamp": "2025-07-22T20:10:21.382869",
+  "results": [
+    {
+      "combination": "pattern",
+      "layers": [
+        "pattern"
+      ],
+      "n_layers": 1,
+      "final_accuracy": 0.9473684210526315,
+      "final_trust": 0.6363264658195136,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.8938320123674838,
+      "presence_trust": 0.5,
+      "permanence_trust": 0.5,
+      "logic_trust": 0.5,
+      "category": "individual"
+    },
+    {
+      "combination": "presence",
+      "layers": [
+        "presence"
+      ],
+      "n_layers": 1,
+      "final_accuracy": 0.45614035087719296,
+      "final_trust": 0.6730769230769231,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.5,
+      "presence_trust": 1.0,
+      "permanence_trust": 0.5,
+      "logic_trust": 0.5,
+      "category": "individual"
+    },
+    {
+      "combination": "permanence",
+      "layers": [
+        "permanence"
+      ],
+      "n_layers": 1,
+      "final_accuracy": 0.543859649122807,
+      "final_trust": 0.569230769230769,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.5,
+      "presence_trust": 0.5,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.5,
+      "category": "individual"
+    },
+    {
+      "combination": "logic",
+      "layers": [
+        "logic"
+      ],
+      "n_layers": 1,
+      "final_accuracy": 0.47368421052631576,
+      "final_trust": 0.5252979757085021,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.5,
+      "presence_trust": 0.5,
+      "permanence_trust": 0.5,
+      "logic_trust": 0.9642456140350877,
+      "category": "individual"
+    },
+    {
+      "combination": "pattern+presence",
+      "layers": [
+        "pattern",
+        "presence"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.9473684210526315,
+      "final_trust": 0.8094033888964366,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.8938320123674838,
+      "presence_trust": 1.0,
+      "permanence_trust": 0.5,
+      "logic_trust": 0.5,
+      "category": "pairs"
+    },
+    {
+      "combination": "pattern+permanence",
+      "layers": [
+        "pattern",
+        "permanence"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.9473684210526315,
+      "final_trust": 0.7055572350502828,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.8938320123674838,
+      "presence_trust": 0.5,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.5,
+      "category": "pairs"
+    },
+    {
+      "combination": "pattern+logic",
+      "layers": [
+        "pattern",
+        "logic"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.9473684210526315,
+      "final_trust": 0.680470893903029,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.8938320123674838,
+      "presence_trust": 0.5,
+      "permanence_trust": 0.5,
+      "logic_trust": 0.9642456140350877,
+      "category": "pairs"
+    },
+    {
+      "combination": "presence+permanence",
+      "layers": [
+        "presence",
+        "permanence"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.43859649122807015,
+      "final_trust": 0.7423076923076922,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.5,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.5,
+      "category": "pairs"
+    },
+    {
+      "combination": "presence+logic",
+      "layers": [
+        "presence",
+        "logic"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.5175438596491229,
+      "final_trust": 0.7153105713000452,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.5,
+      "presence_trust": 1.0,
+      "permanence_trust": 0.5,
+      "logic_trust": 0.9642456140350877,
+      "category": "pairs"
+    },
+    {
+      "combination": "permanence+logic",
+      "layers": [
+        "permanence",
+        "logic"
+      ],
+      "n_layers": 2,
+      "final_accuracy": 0.5701754385964912,
+      "final_trust": 0.6096164642375167,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.5,
+      "presence_trust": 0.5,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9642456140350877,
+      "category": "pairs"
+    },
+    {
+      "combination": "pattern+presence+permanence",
+      "layers": [
+        "pattern",
+        "presence",
+        "permanence"
+      ],
+      "n_layers": 3,
+      "final_accuracy": 0.9473684210526315,
+      "final_trust": 0.8786341581272058,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.8938320123674838,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.5,
+      "category": "triplets"
+    },
+    {
+      "combination": "pattern+presence+logic",
+      "layers": [
+        "pattern",
+        "presence",
+        "logic"
+      ],
+      "n_layers": 3,
+      "final_accuracy": 0.9473684210526315,
+      "final_trust": 0.8698636064536364,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.8938320123674838,
+      "presence_trust": 1.0,
+      "permanence_trust": 0.5,
+      "logic_trust": 0.9642456140350877,
+      "category": "triplets"
+    },
+    {
+      "combination": "pattern+permanence+logic",
+      "layers": [
+        "pattern",
+        "permanence",
+        "logic"
+      ],
+      "n_layers": 3,
+      "final_accuracy": 0.9473684210526315,
+      "final_trust": 0.7660174526074823,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.8938320123674838,
+      "presence_trust": 0.5,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9642456140350877,
+      "category": "triplets"
+    },
+    {
+      "combination": "presence+permanence+logic",
+      "layers": [
+        "presence",
+        "permanence",
+        "logic"
+      ],
+      "n_layers": 3,
+      "final_accuracy": 0.6052631578947368,
+      "final_trust": 0.7980735042735042,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.5,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9642456140350877,
+      "category": "triplets"
+    },
+    {
+      "combination": "pattern+presence+permanence+logic",
+      "layers": [
+        "pattern",
+        "presence",
+        "permanence",
+        "logic"
+      ],
+      "n_layers": 4,
+      "final_accuracy": 0.9473684210526315,
+      "final_trust": 0.9554101651580897,
+      "convergence_achieved": "False",
+      "iterations_completed": 10,
+      "pattern_trust": 0.8938320123674838,
+      "presence_trust": 1.0,
+      "permanence_trust": 1.0,
+      "logic_trust": 0.9642456140350877,
+      "category": "full_ppp"
+    }
+  ],
+  "analysis": {
+    "full_ppp_performance": {
+      "accuracy": 0.9473684210526315,
+      "trust": 0.9554101651580897,
+      "convergence": "False"
+    },
+    "best_individual": {
+      "layer": "pattern",
+      "accuracy": 0.9473684210526315,
+      "trust": 0.6730769230769231
+    },
+    "synergy_metrics": {
+      "accuracy_synergy": 0.0,
+      "trust_synergy": 0.2823332420811666,
+      "synergy_achieved": "True"
+    },
+    "layer_contributions": {
+      "pattern": 0.8938320123674838,
+      "presence": 1.0,
+      "permanence": 1.0,
+      "logic": 0.9642456140350877
+    },
+    "category_performance": {
+      "full_ppp": {
+        "avg_accuracy": 0.9473684210526315,
+        "avg_trust": 0.9554101651580897,
+        "best_accuracy": 0.9473684210526315,
+        "best_trust": 0.9554101651580897
+      },
+      "individual": {
+        "avg_accuracy": 0.6052631578947368,
+        "avg_trust": 0.600983033458927,
+        "best_accuracy": 0.9473684210526315,
+        "best_trust": 0.6730769230769231
+      },
+      "pairs": {
+        "avg_accuracy": 0.7280701754385964,
+        "avg_trust": 0.7104443742825004,
+        "best_accuracy": 0.9473684210526315,
+        "best_trust": 0.8094033888964366
+      },
+      "triplets": {
+        "avg_accuracy": 0.8618421052631579,
+        "avg_trust": 0.8281471803654572,
+        "best_accuracy": 0.9473684210526315,
+        "best_trust": 0.8786341581272058
+      }
+    }
+  }
+}
