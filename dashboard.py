@@ -1322,6 +1322,12 @@ class SREEDashboard:
                     with col3:
                         st.metric("Block Count", f"{block_mean:.1f}", f"±{block_std:.1f}")
             
+            # Tests summary
+            tests_match = re.search(r'Tests Run: (\d+)', results_content)
+            if tests_match:
+                tests_run = int(tests_match.group(1))
+                st.success(f"🧪 **Robust Testing Completed**: {tests_run} different data splits tested")
+            
             # Variation improvement
             variation_match = re.search(r'Variation Reduced: ~8% → ([\d.]+)%', results_content)
             if variation_match:
@@ -1334,16 +1340,77 @@ class SREEDashboard:
                 outlier_pct = float(outlier_match.group(1))
                 st.info(f"🔍 **Outlier Detection**: {outlier_pct:.1f}% of samples identified as outliers")
             
-            # Tests run
-            tests_match = re.search(r'Tests Run: (\d+)', results_content)
-            if tests_match:
-                tests_run = int(tests_match.group(1))
-                st.info(f"🧪 **Robust Testing**: {tests_run} different data splits tested")
+            # Individual test results
+            st.subheader("📋 Individual Test Results")
             
-            st.subheader("📋 Detailed Results")
+            # Extract individual test results
+            test_results = []
+            test_pattern = r'Test (\d+): Acc=([\d.]+), Trust=([\d.]+), Blocks=(\d+), Entropy=([\d.]+)'
+            matches = re.findall(test_pattern, results_content)
+            
+            if matches:
+                # Create DataFrame for better display
+                test_data = []
+                for match in matches:
+                    test_data.append({
+                        'Test': int(match[0]),
+                        'Accuracy': float(match[1]),
+                        'Trust Score': float(match[2]),
+                        'Block Count': int(match[3]),
+                        'Entropy': float(match[4])
+                    })
+                
+                test_df = pd.DataFrame(test_data)
+                
+                # Display as a nice table
+                st.dataframe(
+                    test_df.style.format({
+                        'Accuracy': '{:.1%}',
+                        'Trust Score': '{:.1%}',
+                        'Entropy': '{:.4f}'
+                    }),
+                    use_container_width=True
+                )
+                
+                # Show statistics
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Best Accuracy", f"{test_df['Accuracy'].max():.1%}")
+                    st.metric("Worst Accuracy", f"{test_df['Accuracy'].min():.1%}")
+                
+                with col2:
+                    st.metric("Best Trust", f"{test_df['Trust Score'].max():.1%}")
+                    st.metric("Worst Trust", f"{test_df['Trust Score'].min():.1%}")
+            
+            # Client request fulfillment
+            st.subheader("🎯 Client Request Fulfillment")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                if new_variation < 5.0:
+                    st.success("✅ Variation < 5%")
+                else:
+                    st.error("❌ Variation > 5%")
+            
+            with col2:
+                if block_mean >= 2:
+                    st.success("✅ Block Count ≥ 2")
+                else:
+                    st.error("❌ Block Count < 2")
+            
+            with col3:
+                if tests_run >= 5:
+                    st.success("✅ Tests ≥ 5")
+                else:
+                    st.error("❌ Tests < 5")
+            
+            with col4:
+                st.success("✅ Text File Generated")
             
             # Show the full results in an expander
-            with st.expander("📄 Complete Analysis Report", expanded=False):
+            st.subheader("📄 Complete Analysis Report")
+            with st.expander("📋 Full Report Details", expanded=False):
                 st.text(results_content)
             
             # Download button for the results file
