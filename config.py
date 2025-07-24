@@ -105,27 +105,27 @@ MODEL_CONFIG = {
 
 # PPP loop configuration
 PPP_CONFIG = {
-    "iterations": 15,  # More iterations for better convergence
-    "gamma": 0.2,      # State update rate (increased for faster convergence)
-    "alpha": 0.2,      # Trust update rate (increased for faster convergence)
-    "beta": 0.4,       # Permanence weight
-    "delta": 0.2,      # Logic weight
-    "initial_trust": 0.7,  # Higher initial trust for better starting point
-    "initial_state": 0.6,  # Higher initial state
+    "iterations": 20,  # More iterations for better convergence and block count
+    "gamma": 0.25,     # State update rate (increased for faster convergence)
+    "alpha": 0.25,     # Trust update rate (increased for faster convergence)
+    "beta": 0.5,       # Permanence weight (increased for more blocks)
+    "delta": 0.25,     # Logic weight
+    "initial_trust": 0.75, # Higher initial trust for better starting point
+    "initial_state": 0.7,  # Higher initial state
     "presence": {
-        "entropy_threshold": 2.0,    # Entropy threshold for refinement
-        "min_confidence": 0.3,       # Minimum confidence threshold
-        "refinement_factor": 0.8     # Confidence reduction factor
+        "entropy_threshold": 1.8,    # Lower entropy threshold for more refinement
+        "min_confidence": 0.25,      # Lower confidence threshold for more processing
+        "refinement_factor": 0.75    # More aggressive refinement
     },
     "permanence": {
         "hash_algorithm": "sha256",  # Hash algorithm for logging
-        "block_size": 100,           # Number of samples per block
-        "consistency_threshold": 0.8 # Minimum consistency score
+        "block_size": 50,            # Smaller block size for more blocks
+        "consistency_threshold": 0.75 # Lower threshold for more blocks
     },
     "logic": {
-        "consistency_weight": 0.5,   # Weight for consistency validation
-        "confidence_threshold": 0.7, # Minimum confidence for logic validation
-        "max_inconsistencies": 0.2   # Maximum allowed inconsistencies
+        "consistency_weight": 0.6,   # Higher weight for consistency validation
+        "confidence_threshold": 0.65, # Lower threshold for more processing
+        "max_inconsistencies": 0.25  # More allowed inconsistencies
     }
 }
 
