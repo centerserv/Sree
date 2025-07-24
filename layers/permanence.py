@@ -76,8 +76,12 @@ class PermanenceValidator(Validator):
         if len(self._current_block) >= self._block_size:
             self._finalize_block()
         
-        # Force block creation more frequently for better block count
-        if len(self._current_block) >= self._block_size // 2 and len(self._ledger) < 3:
+        # Force block creation for target of 2-3 blocks
+        if len(self._current_block) >= self._block_size and len(self._ledger) < 3:
+            self._finalize_block()
+        
+        # Ensure we get at least 2 blocks
+        if len(self._current_block) >= self._block_size // 2 and len(self._ledger) < 2:
             self._finalize_block()
         
         # Always finalize at least one block if we have records

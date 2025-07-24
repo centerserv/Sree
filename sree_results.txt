@@ -1,54 +1,72 @@
 ================================================================================
 SREE PHASE 1 RESULTS - CLIENT REPORT
 ================================================================================
-Generated: 2025-07-24 22:05:43
+Generated: 2025-07-24 22:34:03
 Dataset: heart
-Tests Run: 8
+Tests Run: 15
 
 PERFORMANCE SUMMARY:
 ----------------------------------------
-Accuracy: 0.9780 ± 0.0233
-Trust Score: 0.8939 ± 0.0316
+Accuracy: 0.9722 ± 0.0200
+Trust Score: 0.8834 ± 0.0310
 Block Count: 4.0 ± 0.0
 Entropy: 0.0000 ± 0.0000
-Cross-Validation: 0.9591 ± 0.0073
+Cross-Validation: 0.9615 ± 0.0101
 
 VARIATION ANALYSIS:
 ----------------------------------------
-Variation Reduced: ~8% → 2.33%
+Variation Reduced: ~8% → 2.00%
 Accuracy Range: 0.9231 - 1.0000
-Trust Range: 0.8114 - 0.9118
+Trust Range: 0.8095 - 0.9118
 Block Count Range: 4 - 4
 
 OUTLIER ANALYSIS:
 ----------------------------------------
 Dataset: heart
 Total Samples: 455
-Outliers Detected: 141
-Outlier Percentage: 30.99%
+Outliers Detected: 142
+Outlier Percentage: 31.21%
 
-Outlier Details (first 10):
-  Sample 5: Label 1, Max Z-score: 2.01
-  Sample 7: Label 1, Max Z-score: 6.42
-  Sample 8: Label 1, Max Z-score: 3.60
-  Sample 19: Label 0, Max Z-score: 2.67
-  Sample 21: Label 1, Max Z-score: 2.91
-  Sample 23: Label 0, Max Z-score: 1.89
-  Sample 24: Label 1, Max Z-score: 2.33
-  Sample 27: Label 0, Max Z-score: 3.25
-  Sample 30: Label 1, Max Z-score: 3.04
-  Sample 31: Label 0, Max Z-score: 3.46
+Outlier Details (first 15):
+  Sample 5: Label 1, Max Z-score: 2.01, Types: IQR
+  Sample 7: Label 1, Max Z-score: 6.42, Types: Z-score, IQR
+  Sample 8: Label 1, Max Z-score: 3.60, Types: Z-score, IQR
+  Sample 19: Label 0, Max Z-score: 2.67, Types: Z-score, IQR
+  Sample 21: Label 1, Max Z-score: 2.91, Types: Z-score, IQR
+  Sample 23: Label 0, Max Z-score: 1.89, Types: IQR
+  Sample 24: Label 1, Max Z-score: 2.33, Types: IQR
+  Sample 27: Label 0, Max Z-score: 3.25, Types: Z-score, IQR
+  Sample 30: Label 1, Max Z-score: 3.04, Types: Z-score, IQR
+  Sample 31: Label 0, Max Z-score: 3.46, Types: Z-score, IQR
+  Sample 34: Label 0, Max Z-score: 7.68, Types: Z-score, IQR
+  Sample 36: Label 0, Max Z-score: 4.28, Types: Z-score, IQR
+  Sample 38: Label 0, Max Z-score: 2.91, Types: Z-score, IQR
+  Sample 41: Label 1, Max Z-score: 2.99, Types: Z-score, IQR
+  Sample 42: Label 0, Max Z-score: 2.74, Types: Z-score, IQR
+
+Medical Outlier Summary:
+  - Z-score outliers: Values with |z| > 2.5
+  - IQR outliers: Values outside Q1-1.5*IQR to Q3+1.5*IQR
+  - Medical outliers: Extreme normalized values or high variability
+  - These may indicate measurement errors or unusual medical conditions
 
 INDIVIDUAL TEST RESULTS:
 ----------------------------------------
-Test 1: Acc=0.9670, Trust=0.8939, Blocks=4, Entropy=0.0000
-Test 2: Acc=1.0000, Trust=0.9044, Blocks=4, Entropy=0.0000
-Test 3: Acc=0.9890, Trust=0.9113, Blocks=4, Entropy=0.0000
+Test 1: Acc=0.9670, Trust=0.8506, Blocks=4, Entropy=0.0000
+Test 2: Acc=1.0000, Trust=0.9041, Blocks=4, Entropy=0.0000
+Test 3: Acc=0.9890, Trust=0.9111, Blocks=4, Entropy=0.0000
 Test 4: Acc=0.9780, Trust=0.9118, Blocks=4, Entropy=0.0000
-Test 5: Acc=1.0000, Trust=0.9092, Blocks=4, Entropy=0.0000
-Test 6: Acc=0.9780, Trust=0.9064, Blocks=4, Entropy=0.0000
-Test 7: Acc=0.9231, Trust=0.8114, Blocks=4, Entropy=0.0000
-Test 8: Acc=0.9890, Trust=0.9027, Blocks=4, Entropy=0.0000
+Test 5: Acc=1.0000, Trust=0.9091, Blocks=4, Entropy=0.0000
+Test 6: Acc=0.9780, Trust=0.9060, Blocks=4, Entropy=0.0000
+Test 7: Acc=0.9231, Trust=0.8095, Blocks=4, Entropy=0.0000
+Test 8: Acc=0.9890, Trust=0.9022, Blocks=4, Entropy=0.0000
+Test 9: Acc=0.9780, Trust=0.9011, Blocks=4, Entropy=0.0000
+Test 10: Acc=0.9560, Trust=0.8602, Blocks=4, Entropy=0.0000
+Test 11: Acc=0.9670, Trust=0.8570, Blocks=4, Entropy=0.0000
+Test 12: Acc=0.9780, Trust=0.9068, Blocks=4, Entropy=0.0000
+Test 13: Acc=0.9451, Trust=0.8521, Blocks=4, Entropy=0.0000
+Test 14: Acc=0.9560, Trust=0.8595, Blocks=4, Entropy=0.0000
+Test 15: Acc=0.9780, Trust=0.9106, Blocks=4, Entropy=0.0000
 
 ================================================================================
 END OF REPORT

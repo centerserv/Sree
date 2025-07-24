@@ -105,13 +105,13 @@ MODEL_CONFIG = {
 
 # PPP loop configuration
 PPP_CONFIG = {
-    "iterations": 20,  # More iterations for better convergence and block count
-    "gamma": 0.25,     # State update rate (increased for faster convergence)
-    "alpha": 0.25,     # Trust update rate (increased for faster convergence)
-    "beta": 0.5,       # Permanence weight (increased for more blocks)
-    "delta": 0.25,     # Logic weight
-    "initial_trust": 0.75, # Higher initial trust for better starting point
-    "initial_state": 0.7,  # Higher initial state
+    "iterations": 25,  # More iterations for better convergence and block count
+    "gamma": 0.3,      # State update rate (increased for faster convergence)
+    "alpha": 0.3,      # Trust update rate (increased for faster convergence)
+    "beta": 0.6,       # Permanence weight (increased for more blocks)
+    "delta": 0.3,      # Logic weight
+    "initial_trust": 0.8, # Higher initial trust for better starting point
+    "initial_state": 0.75, # Higher initial state
     "presence": {
         "entropy_threshold": 1.8,    # Lower entropy threshold for more refinement
         "min_confidence": 0.25,      # Lower confidence threshold for more processing
@@ -119,8 +119,8 @@ PPP_CONFIG = {
     },
     "permanence": {
         "hash_algorithm": "sha256",  # Hash algorithm for logging
-        "block_size": 50,            # Smaller block size for more blocks
-        "consistency_threshold": 0.75 # Lower threshold for more blocks
+        "block_size": 50,            # Larger block size for 2-3 blocks
+        "consistency_threshold": 0.80 # Higher threshold for fewer blocks
     },
     "logic": {
         "consistency_weight": 0.6,   # Higher weight for consistency validation

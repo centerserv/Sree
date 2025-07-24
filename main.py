@@ -25,7 +25,7 @@ from data_loader import load_all_datasets, DataLoader
 
 def detect_outliers(data: np.ndarray, labels: np.ndarray, dataset_name: str) -> dict:
     """
-    Detect outliers in the dataset using statistical methods.
+    Detect outliers in the dataset using statistical methods with medical focus.
     
     Args:
         data: Input features
@@ -40,12 +40,13 @@ def detect_outliers(data: np.ndarray, labels: np.ndarray, dataset_name: str) -> 
         "total_samples": len(data),
         "outliers_detected": 0,
         "outlier_percentage": 0.0,
-        "outlier_details": []
+        "outlier_details": [],
+        "medical_outliers": []
     }
     
-    # Method 1: Z-score method (|z| > 3)
+    # Method 1: Z-score method (|z| > 2.5 for medical data)
     z_scores = np.abs((data - np.mean(data, axis=0)) / np.std(data, axis=0))
-    z_outliers = np.any(z_scores > 3, axis=1)
+    z_outliers = np.any(z_scores > 2.5, axis=1)
     
     # Method 2: IQR method
     Q1 = np.percentile(data, 25, axis=0)
@@ -55,8 +56,21 @@ def detect_outliers(data: np.ndarray, labels: np.ndarray, dataset_name: str) -> 
     upper_bound = Q3 + 1.5 * IQR
     iqr_outliers = np.any((data < lower_bound) | (data > upper_bound), axis=1)
     
+    # Method 3: Medical-specific thresholds (for heart disease dataset)
+    medical_outliers = np.zeros(len(data), dtype=bool)
+    if dataset_name == 'heart' and data.shape[1] >= 30:
+        # Common medical thresholds for heart disease features
+        # These are approximate based on typical medical ranges
+        for i, sample in enumerate(data):
+            # Check for extreme values that might indicate measurement errors
+            if np.any(sample > 10) or np.any(sample < -10):  # Extreme normalized values
+                medical_outliers[i] = True
+            # Check for unusual patterns in medical data
+            if np.std(sample) > 5:  # Very high variability
+                medical_outliers[i] = True
+    
     # Combine methods
-    outliers = z_outliers | iqr_outliers
+    outliers = z_outliers | iqr_outliers | medical_outliers
     
     outlier_info["outliers_detected"] = np.sum(outliers)
     outlier_info["outlier_percentage"] = (np.sum(outliers) / len(data)) * 100
@@ -64,8 +78,8 @@ def detect_outliers(data: np.ndarray, labels: np.ndarray, dataset_name: str) -> 
     # Get outlier details
     if np.sum(outliers) > 0:
         outlier_indices = np.where(outliers)[0]
-        for idx in outlier_indices[:10]:  # Show first 10 outliers
-            outlier_info["outlier_details"].append({
+        for idx in outlier_indices[:15]:  # Show first 15 outliers
+            outlier_detail = {
                 "index": int(idx),
                 "label": int(labels[idx]),
                 "max_z_score": float(np.max(z_scores[idx])),
@@ -74,8 +88,19 @@ def detect_outliers(data: np.ndarray, labels: np.ndarray, dataset_name: str) -> 
                     "std": float(np.std(data[idx])),
                     "min": float(np.min(data[idx])),
                     "max": float(np.max(data[idx]))
-                }
-            })
+                },
+                "outlier_types": []
+            }
+            
+            # Identify outlier types
+            if z_outliers[idx]:
+                outlier_detail["outlier_types"].append("Z-score")
+            if iqr_outliers[idx]:
+                outlier_detail["outlier_types"].append("IQR")
+            if medical_outliers[idx]:
+                outlier_detail["outlier_types"].append("Medical")
+            
+            outlier_info["outlier_details"].append(outlier_detail)
     
     return outlier_info
 
@@ -261,10 +286,19 @@ def save_results_to_text(results: dict, outlier_info: dict, output_file: str = "
         f.write(f"Outlier Percentage: {outlier_info['outlier_percentage']:.2f}%\n")
         
         if outlier_info['outlier_details']:
-            f.write("\nOutlier Details (first 10):\n")
+            f.write("\nOutlier Details (first 15):\n")
             for outlier in outlier_info['outlier_details']:
+                outlier_types = ", ".join(outlier.get('outlier_types', []))
                 f.write(f"  Sample {outlier['index']}: Label {outlier['label']}, "
-                       f"Max Z-score: {outlier['max_z_score']:.2f}\n")
+                       f"Max Z-score: {outlier['max_z_score']:.2f}, "
+                       f"Types: {outlier_types}\n")
+        
+        # Medical outlier summary
+        f.write("\nMedical Outlier Summary:\n")
+        f.write("  - Z-score outliers: Values with |z| > 2.5\n")
+        f.write("  - IQR outliers: Values outside Q1-1.5*IQR to Q3+1.5*IQR\n")
+        f.write("  - Medical outliers: Extreme normalized values or high variability\n")
+        f.write("  - These may indicate measurement errors or unusual medical conditions\n")
         f.write("\n")
         
         # Individual Test Results
@@ -392,7 +426,7 @@ def main():
             
             # Run multiple tests to reduce variation
             logger.info("Running multiple tests to reduce variation...")
-            results = run_multiple_tests(target_dataset, dataset_data, n_tests=8)
+            results = run_multiple_tests(target_dataset, dataset_data, n_tests=15)
             
             # Save results to text file
             logger.info("Saving results to text file...")
