@@ -1,0 +1,60 @@
+CREDIT RISK DATASET ANALYSIS REPORT
+==================================================
+
+DATASET INFORMATION:
+--------------------
+Total samples: 1604
+Total features: 12
+Feature names: credit_score, debt_to_income, loan_amount, income, age, employment_years, payment_history, credit_utilization, num_accounts, recent_inquiries, late_payments, credit_length
+Target name: target
+
+CLASS DISTRIBUTION:
+--------------------
+Class 0: 1194 samples (74.4%)
+Class 1: 410 samples (25.6%)
+Balanced dataset: No
+
+FEATURE IMPORTANCE (Correlation with Target):
+----------------------------------------
+late_payments: 0.8990
+num_accounts: 0.8374
+loan_amount: 0.8207
+recent_inquiries: 0.8164
+payment_history: 0.8083
+credit_utilization: 0.7467
+income: 0.7463
+age: 0.7447
+employment_years: 0.7329
+credit_score: 0.7242
+debt_to_income: 0.7188
+credit_length: 0.6961
+
+DATA QUALITY ASSESSMENT:
+-------------------------
+Missing values: No
+Missing percentage: 0.00%
+Duplicate rows: 1472
+Duplicate percentage: 91.77%
+
+OUTLIERS SUMMARY:
+---------------
+Total outliers detected: 0
+Outliers by feature:
+  credit_score: 0 (0.0%)
+  debt_to_income: 0 (0.0%)
+  loan_amount: 0 (0.0%)
+  income: 0 (0.0%)
+  age: 0 (0.0%)
+  employment_years: 0 (0.0%)
+  payment_history: 0 (0.0%)
+  credit_utilization: 0 (0.0%)
+  num_accounts: 0 (0.0%)
+  recent_inquiries: 0 (0.0%)
+  late_payments: 0 (0.0%)
+  credit_length: 0 (0.0%)
+
+RECOMMENDATIONS:
+---------------
+- Remove duplicate rows
+- Consider class balancing techniques
+- Dataset appears suitable for credit risk analysis
