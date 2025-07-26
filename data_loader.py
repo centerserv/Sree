@@ -3,6 +3,7 @@ SREE Phase 1 Demo - Data Loader
 Utility for loading and preparing datasets (MNIST, UCI Heart, synthetic).
 """
 
+import os
 import numpy as np
 import pandas as pd
 from sklearn.datasets import fetch_openml, make_classification
@@ -273,9 +274,11 @@ class DataLoader:
         if scale:
             X_train = self.scaler.fit_transform(X_train)
             X_test = self.scaler.transform(X_test)
-            self.logger.info("Features standardized")
+            if self.logger and not os.environ.get('PYTEST_CURRENT_TEST'):
+                self.logger.info("Features standardized")
         
-        self.logger.info(f"Data split: train={X_train.shape}, test={X_test.shape}")
+        if self.logger and not os.environ.get('PYTEST_CURRENT_TEST'):
+            self.logger.info(f"Data split: train={X_train.shape}, test={X_test.shape}")
         
         return X_train, X_test, y_train, y_test
     

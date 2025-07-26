@@ -1,0 +1,33 @@
+{
+  "dataset": "mnist",
+  "dataset_shape": [
+    1000,
+    784
+  ],
+  "pattern_optimization": {
+    "best_config": {
+      "hidden_layer_sizes": [
+        128,
+        64
+      ],
+      "max_iter": 1000
+    },
+    "best_score": 0.9997990814663261,
+    "tested_configs": 3
+  },
+  "presence_optimization": {
+    "best_param": 0.1,
+    "best_score": 1.683375591003306e-08,
+    "tested_params": 5
+  },
+  "trust_optimization": {
+    "best_config": {
+      "iterations": 5,
+      "tolerance": 0.01
+    },
+    "best_score": 0.9,
+    "tested_configs": 3
+  },
+  "total_optimization_time": 21.233694791793823,
+  "timestamp": "2025-07-26 14:59:03"
+}

@@ -1,0 +1,33 @@
+{
+  "dataset": "heart",
+  "dataset_shape": [
+    569,
+    30
+  ],
+  "pattern_optimization": {
+    "best_config": {
+      "hidden_layer_sizes": [
+        128,
+        64
+      ],
+      "max_iter": 1000
+    },
+    "best_score": 0.9999869930757422,
+    "tested_configs": 3
+  },
+  "presence_optimization": {
+    "best_param": null,
+    "best_score": 0.0,
+    "tested_params": 5
+  },
+  "trust_optimization": {
+    "best_config": {
+      "iterations": 5,
+      "tolerance": 0.01
+    },
+    "best_score": 0.956140350877193,
+    "tested_configs": 3
+  },
+  "total_optimization_time": 5.738998889923096,
+  "timestamp": "2025-07-26 14:59:08"
+}

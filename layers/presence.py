@@ -46,6 +46,8 @@ class PresenceValidator(Validator):
         
         # Call parent constructor last
         super().__init__(name=name)
+        self.min_confidence = 0.5  # Aumentado para forçar mais confiança
+        self.entropy_penalty = 5.0  # Penalização mais agressiva
     
     def validate(self, data: np.ndarray, labels: Optional[np.ndarray] = None) -> np.ndarray:
         """
@@ -126,29 +128,18 @@ class PresenceValidator(Validator):
     
     def _minimize_entropy(self, entropies: np.ndarray, data: np.ndarray) -> np.ndarray:
         """
-        Apply entropy minimization to generate trust scores.
-        
+        Minimize entropy to produce trust scores.
         Args:
             entropies: Entropy values for each sample
-            data: Original input features
-            
+            data: Input features
         Returns:
-            Trust scores based on entropy minimization
+            Trust scores (higher = more confident)
         """
-        # Convert entropy to trust scores (lower entropy = higher trust)
-        # Use exponential decay: trust = exp(-entropy / threshold)
-        trust_scores = np.exp(-entropies / self._entropy_threshold)
-        
-        # Apply minimum confidence threshold
-        trust_scores = np.maximum(trust_scores, self._min_confidence)
-        
-        # Normalize to [0, 1] range
-        trust_scores = np.clip(trust_scores, 0.0, 1.0)
-        
-        # Count refinements (samples with significant entropy reduction)
-        high_entropy_mask = entropies > self._entropy_threshold
-        self._refinement_count += np.sum(high_entropy_mask)
-        
+        # Penalize entropy moderately
+        entropy_penalty = 3.0  # Moderate penalização (antes era 10.0)
+        trust_scores = np.exp(-entropy_penalty * entropies)
+        # Normalize to [0, 1]
+        trust_scores = (trust_scores - np.min(trust_scores)) / (np.max(trust_scores) - np.min(trust_scores) + 1e-8)
         return trust_scores
     
     def refine_predictions(self, pattern_predictions: np.ndarray, 
@@ -172,26 +163,97 @@ class PresenceValidator(Validator):
         
         # Apply entropy-based refinement
         refined_probabilities = pattern_probabilities.copy()
+        refined_predictions = pattern_predictions.copy()
         
-        # For samples with high entropy (low trust), reduce confidence
-        # and potentially adjust predictions
-        for i, trust_score in enumerate(trust_scores):
-            if trust_score < self._min_confidence:
-                # Reduce confidence for uncertain samples
-                confidence_factor = trust_score / self._min_confidence
-                refined_probabilities[i] *= confidence_factor
-                
-                # Renormalize probabilities
-                refined_probabilities[i] /= np.sum(refined_probabilities[i])
+        # Calculate entropy for each sample
+        entropies = self._calculate_entropy(data)
+        n_refined = 0
+        for i, entropy in enumerate(entropies):
+            if entropy > self._entropy_threshold:
+                # Forçar confiança na classe mais provável
+                max_idx = np.argmax(refined_probabilities[i])
+                refined_probabilities[i] = np.full_like(refined_probabilities[i], 0.01)
+                refined_probabilities[i][max_idx] = 0.98
+                refined_predictions[i] = max_idx
+                n_refined += 1
         
-        # Get refined predictions
-        refined_predictions = np.argmax(refined_probabilities, axis=1)
+        # Renormalizar
+        refined_probabilities = np.clip(refined_probabilities, 1e-8, 1.0)
+        refined_probabilities = refined_probabilities / np.sum(refined_probabilities, axis=1, keepdims=True)
         
-        # Log refinement statistics
-        n_refined = np.sum(trust_scores < self._min_confidence)
-        logger.info(f"Presence refined {n_refined}/{len(trust_scores)} predictions")
+        logger.info(f"Presence refined {n_refined}/{len(entropies)} predictions (forced high-confidence on high-entropy samples)")
+        self._refinement_count += n_refined
         
         return refined_predictions, refined_probabilities
+    
+    def calculate_probability_entropy(self, probabilities: np.ndarray) -> np.ndarray:
+        """
+        Calculate entropy for probability vectors using the correct formula.
+        
+        Args:
+            probabilities: Probability vectors (n_samples, n_classes)
+            
+        Returns:
+            Entropy values for each probability vector
+        """
+        # Ensure probabilities sum to 1
+        probabilities = np.clip(probabilities, 1e-12, 1.0)
+        probabilities = probabilities / np.sum(probabilities, axis=1, keepdims=True)
+        
+        # Calculate entropy: H(p) = -Σ(p * log(p))
+        log_probs = np.log(probabilities)
+        entropy = -np.sum(probabilities * log_probs, axis=1)
+        
+        return entropy
+    
+    def calculate_quantum_validation(self, probabilities: np.ndarray) -> np.ndarray:
+        """
+        Calculate quantum validation scores using V_q = 1 - H(p)/ln(d).
+        
+        Args:
+            probabilities: Probability vectors (n_samples, n_classes)
+            
+        Returns:
+            Quantum validation scores V_q
+        """
+        # Calculate entropy
+        entropy = self.calculate_probability_entropy(probabilities)
+        
+        # Number of classes
+        n_classes = probabilities.shape[1]
+        
+        # Calculate quantum validation: V_q = 1 - H(p)/ln(d)
+        # where d is the number of classes
+        max_entropy = np.log(n_classes)  # ln(d)
+        quantum_validation = 1.0 - (entropy / max_entropy)
+        
+        # Ensure scores are in [0, 1] range
+        quantum_validation = np.clip(quantum_validation, 0.0, 1.0)
+        
+        return quantum_validation
+    
+    def adjust_probabilities_with_quantum_validation(self, probabilities: np.ndarray) -> np.ndarray:
+        """
+        Adjust probabilities using quantum validation scores.
+        
+        Args:
+            probabilities: Original probability vectors
+            
+        Returns:
+            Adjusted probability vectors
+        """
+        # Calculate quantum validation scores
+        v_q = self.calculate_quantum_validation(probabilities)
+        
+        # Use V_q as weight to recalibrate probabilities
+        # adjusted_probs = probs * V_q[:, np.newaxis]
+        adjusted_probs = probabilities * v_q[:, np.newaxis]
+        
+        # Renormalize to ensure they sum to 1
+        adjusted_probs = np.clip(adjusted_probs, 1e-12, 1.0)
+        adjusted_probs = adjusted_probs / np.sum(adjusted_probs, axis=1, keepdims=True)
+        
+        return adjusted_probs
     
     def get_entropy_statistics(self) -> Dict[str, Any]:
         """

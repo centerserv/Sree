@@ -43,6 +43,10 @@ class PermanenceValidator(Validator):
         self._block_counter = 0
         self._consistency_checks = []
         
+        # Hash storage for blockchain-like validation
+        self._previous_hashes = {}  # Store previous hashes for each sample
+        self._current_hashes = {}   # Store current hashes for each sample
+        
         # Get permanence configuration
         permanence_config = PPP_CONFIG["permanence"].copy()
         permanence_config.update(kwargs)
@@ -72,30 +76,117 @@ class PermanenceValidator(Validator):
         # Add records to current block
         self._current_block.extend(validation_records)
         
-        # Check if block is full and finalize
-        if len(self._current_block) >= self._block_size:
+        # Dynamic block creation based on confidence and consistency
+        trust_scores = self._calculate_consistency_scores(data, validation_records)
+        
+        # Create blocks based on trust score distribution
+        high_confidence_mask = trust_scores > np.percentile(trust_scores, 75)
+        low_confidence_mask = trust_scores < np.percentile(trust_scores, 25)
+        
+        # Force block creation for high-confidence samples
+        if np.sum(high_confidence_mask) >= self._block_size // 2:
             self._finalize_block()
         
-        # Force block creation for target of 2-3 blocks
-        if len(self._current_block) >= self._block_size and len(self._ledger) < 3:
-            self._finalize_block()
+        # Create separate block for low-confidence samples
+        if np.sum(low_confidence_mask) >= self._block_size // 3:
+            # Split current block and create new one for low-confidence samples
+            low_conf_records = [r for i, r in enumerate(validation_records) if low_confidence_mask[i]]
+            high_conf_records = [r for i, r in enumerate(validation_records) if not low_confidence_mask[i]]
+            
+            # Add high-confidence records to current block
+            self._current_block = high_conf_records
+            
+            # Finalize current block if it has enough records
+            if len(self._current_block) >= self._block_size // 2:
+                self._finalize_block()
+            
+            # Create new block for low-confidence samples
+            self._current_block = low_conf_records
+            if len(self._current_block) > 0:
+                self._finalize_block()
         
-        # Ensure we get at least 2 blocks
-        if len(self._current_block) >= self._block_size // 2 and len(self._ledger) < 2:
+        # Ensure minimum block creation for convergence
+        if len(self._current_block) >= self._block_size // 2 and len(self._ledger) < 3:
             self._finalize_block()
         
         # Always finalize at least one block if we have records
         if len(self._current_block) > 0 and len(self._ledger) == 0:
             self._finalize_block()
         
-        # Calculate consistency-based trust scores
-        trust_scores = self._calculate_consistency_scores(data, validation_records)
+        # Calculate final consistency-based trust scores
+        final_trust_scores = self._calculate_consistency_scores(data, validation_records)
+        
+        # Boost trust scores based on block consistency
+        if len(self._ledger) > 1:
+            consistency_boost = min(0.1, len(self._ledger) * 0.02)
+            final_trust_scores = np.minimum(1.0, final_trust_scores + consistency_boost)
         
         logger.info(f"Permanence processed {len(validation_records)} records, "
                    f"block size: {len(self._current_block)}/{self._block_size}, "
                    f"total blocks: {len(self._ledger)}")
         
-        return trust_scores
+        return final_trust_scores
+    
+    def calculate_blockchain_validation(self, labels: np.ndarray, probabilities: np.ndarray) -> np.ndarray:
+        """
+        Calculate blockchain validation scores using hash comparison.
+        
+        Args:
+            labels: Ground truth labels
+            probabilities: Probability vectors (n_samples, n_classes)
+            
+        Returns:
+            Blockchain validation scores V_b
+        """
+        n_samples = len(labels)
+        blockchain_scores = np.zeros(n_samples)
+        
+        for i in range(n_samples):
+            # Create hash of label + probability vector
+            label_prob_hash = self._create_label_probability_hash(labels[i], probabilities[i])
+            
+            # Store current hash
+            self._current_hashes[i] = label_prob_hash
+            
+            # Compare with previous hash
+            if i in self._previous_hashes:
+                previous_hash = self._previous_hashes[i]
+                if label_prob_hash == previous_hash:
+                    # Hash is the same - V_b = 1.0
+                    blockchain_scores[i] = 1.0
+                else:
+                    # Hash is different - V_b = 0.0 and update hash
+                    blockchain_scores[i] = 0.0
+                    self._previous_hashes[i] = label_prob_hash
+            else:
+                # First time seeing this sample - V_b = 0.5 (neutral)
+                blockchain_scores[i] = 0.5
+                self._previous_hashes[i] = label_prob_hash
+        
+        return blockchain_scores
+    
+    def _create_label_probability_hash(self, label: int, probability_vector: np.ndarray) -> str:
+        """
+        Create SHA-256 hash of label + probability vector.
+        
+        Args:
+            label: Ground truth label
+            probability_vector: Probability vector for the sample
+            
+        Returns:
+            SHA-256 hash string
+        """
+        # Convert label and probability vector to bytes
+        label_bytes = str(label).encode('utf-8')
+        prob_bytes = probability_vector.tobytes()
+        
+        # Combine label and probability vector
+        combined_data = label_bytes + b'|' + prob_bytes
+        
+        # Create SHA-256 hash
+        hash_obj = hashlib.sha256(combined_data)
+        
+        return hash_obj.hexdigest()
     
     def _create_validation_records(self, data: np.ndarray, 
                                   labels: Optional[np.ndarray] = None) -> List[Dict[str, Any]]:
@@ -409,6 +500,8 @@ class PermanenceValidator(Validator):
         self._current_block = []
         self._block_counter = 0
         self._consistency_checks = []
+        self._previous_hashes = {}
+        self._current_hashes = {}
     
     def get_state(self) -> Dict[str, Any]:
         """Get current validator state."""

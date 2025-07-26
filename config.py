@@ -43,19 +43,22 @@ def setup_logging(level: str = "INFO", log_file: str = "sree_demo.log") -> loggi
     logger = logging.getLogger('SREE_Demo')
     logger.setLevel(getattr(logging, level.upper()))
     
+    # Clear existing handlers to avoid duplicates
+    logger.handlers.clear()
+    
     # Create file handler
     file_handler = logging.FileHandler(log_path)
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
     
-    # Create console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
+    # Create console handler only for non-test environments
+    if not os.environ.get('PYTEST_CURRENT_TEST'):
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
     
-    # Add handlers to logger
     logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
     
     return logger
 
@@ -90,42 +93,57 @@ DATASET_CONFIG = {
 # Model configuration
 MODEL_CONFIG = {
     "mlp": {
-        "hidden_layer_sizes": (300, 150, 75),  # Even deeper network for better performance
-        "max_iter": 1000,  # More iterations for convergence
+        "hidden_layer_sizes": (128, 64),  # Simplified architecture for better convergence
+        "max_iter": 1500,  # More iterations for convergence
         "random_state": 42,
         "early_stopping": True,
-        "validation_fraction": 0.1,
-        "learning_rate_init": 0.001,  # Lower learning rate for stability
-        "alpha": 0.00001,  # Less L2 regularization for better fit
-        "tol": 1e-5,  # Lower tolerance for convergence
-        "activation": "relu",  # ReLU activation
-        "solver": "adam"  # Adam optimizer
-    }
+        "validation_fraction": 0.15,
+        "learning_rate_init": 0.005,  # Higher learning rate for faster convergence
+        "alpha": 0.0001,  # Slightly more regularization
+        "tol": 1e-4,  # Higher tolerance for convergence
+        "activation": "relu",
+        "solver": "adam"
+    },
+    "xgboost": {
+        "n_estimators": 300,  # More trees for better performance
+        "max_depth": 8,  # Slightly deeper trees
+        "learning_rate": 0.05,  # Lower learning rate for better generalization
+        "random_state": 42,
+        "subsample": 0.9,  # Higher subsample for better performance
+        "colsample_bytree": 0.9,  # Higher colsample for better performance
+        "reg_alpha": 0.05,  # L1 regularization
+        "reg_lambda": 0.1,  # L2 regularization
+        "min_child_weight": 3,  # Prevent overfitting
+        "gamma": 0.1,  # Minimum loss reduction for split
+        "scale_pos_weight": 1.0  # Handle class imbalance
+    },
+    "default_model": "xgboost"  # Use XGBoost as default
 }
 
 # PPP loop configuration
 PPP_CONFIG = {
-    "iterations": 25,  # More iterations for better convergence and block count
-    "gamma": 0.3,      # State update rate (increased for faster convergence)
-    "alpha": 0.3,      # Trust update rate (increased for faster convergence)
-    "beta": 0.6,       # Permanence weight (increased for more blocks)
-    "delta": 0.3,      # Logic weight
-    "initial_trust": 0.8, # Higher initial trust for better starting point
-    "initial_state": 0.75, # Higher initial state
+    "iterations": 30,  # Increased for 10-20 iterations convergence target
+    "gamma": 0.4,      # State update rate (increased for faster convergence)
+    "alpha": 0.4,      # Trust update rate (increased for faster convergence)
+    "beta": 0.7,       # Permanence weight (increased for more blocks)
+    "delta": 0.4,      # Logic weight (increased for better validation)
+    "initial_trust": 0.85, # Higher initial trust for better starting point
+    "initial_state": 0.80, # Higher initial state
     "presence": {
-        "entropy_threshold": 1.8,    # Lower entropy threshold for more refinement
-        "min_confidence": 0.25,      # Lower confidence threshold for more processing
-        "refinement_factor": 0.75    # More aggressive refinement
+        "entropy_threshold": 1.5,    # Lower entropy threshold for more refinement
+        "min_confidence": 0.5,  # Aumentado para forçar mais confiança
+        "entropy_penalty": 5.0,  # Penalização mais agressiva
+        "refinement_factor": 0.85    # More aggressive refinement
     },
     "permanence": {
         "hash_algorithm": "sha256",  # Hash algorithm for logging
-        "block_size": 50,            # Larger block size for 2-3 blocks
-        "consistency_threshold": 0.80 # Higher threshold for fewer blocks
+        "block_size": 40,            # Smaller block size for more blocks
+        "consistency_threshold": 0.75 # Lower threshold for more blocks
     },
     "logic": {
-        "consistency_weight": 0.6,   # Higher weight for consistency validation
-        "confidence_threshold": 0.65, # Lower threshold for more processing
-        "max_inconsistencies": 0.25  # More allowed inconsistencies
+        "consistency_weight": 0.7,   # Higher weight for consistency validation
+        "confidence_threshold": 0.60, # Lower threshold for more processing
+        "max_inconsistencies": 0.20  # Fewer allowed inconsistencies
     }
 }
 

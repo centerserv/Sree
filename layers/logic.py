@@ -86,6 +86,119 @@ class LogicValidator(Validator):
         
         return trust_scores
     
+    def calculate_symbolic_validation(self, predictions: np.ndarray, data: np.ndarray) -> np.ndarray:
+        """
+        Calculate symbolic validation scores using domain-specific rules.
+        
+        Args:
+            predictions: Model predictions
+            data: Input features (assuming UCI Heart Disease format)
+            
+        Returns:
+            Symbolic validation scores V_l
+        """
+        n_samples = len(predictions)
+        symbolic_scores = np.ones(n_samples) * 0.5  # Default neutral score
+        
+        # UCI Heart Disease dataset features (approximate indices)
+        # Note: These indices may need adjustment based on actual dataset structure
+        try:
+            # Assuming standard UCI Heart Disease feature order
+            # age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal
+            age_idx = 0
+            sex_idx = 1
+            cp_idx = 2
+            trestbps_idx = 3  # resting blood pressure
+            chol_idx = 4      # cholesterol
+            fbs_idx = 5       # fasting blood sugar
+            restecg_idx = 6   # resting electrocardiographic results
+            thalach_idx = 7   # maximum heart rate achieved
+            exang_idx = 8     # exercise induced angina
+            oldpeak_idx = 9   # ST depression induced by exercise
+            slope_idx = 10    # slope of peak exercise ST segment
+            ca_idx = 11       # number of major vessels colored by fluoroscopy
+            thal_idx = 12     # thalassemia
+            
+            for i in range(n_samples):
+                prediction = predictions[i]
+                sample = data[i]
+                
+                # Rule 1: High cholesterol (>240) with heart disease prediction
+                if prediction == 1 and sample[chol_idx] > 240:
+                    symbolic_scores[i] = 1.0
+                
+                # Rule 2: High blood pressure (>140) with heart disease prediction
+                elif prediction == 1 and sample[trestbps_idx] > 140:
+                    symbolic_scores[i] = 1.0
+                
+                # Rule 3: Exercise induced angina with heart disease prediction
+                elif prediction == 1 and sample[exang_idx] == 1:
+                    symbolic_scores[i] = 1.0
+                
+                # Rule 4: Multiple major vessels (>2) with heart disease prediction
+                elif prediction == 1 and sample[ca_idx] > 2:
+                    symbolic_scores[i] = 1.0
+                
+                # Rule 5: Low maximum heart rate (<120) with heart disease prediction
+                elif prediction == 1 and sample[thalach_idx] < 120:
+                    symbolic_scores[i] = 1.0
+                
+                # Rule 6: High ST depression (>2) with heart disease prediction
+                elif prediction == 1 and sample[oldpeak_idx] > 2:
+                    symbolic_scores[i] = 1.0
+                
+                # Rule 7: Heart disease prediction but normal values
+                elif prediction == 1 and (sample[chol_idx] < 200 and 
+                                        sample[trestbps_idx] < 120 and 
+                                        sample[exang_idx] == 0):
+                    symbolic_scores[i] = 0.3  # Lower confidence
+                
+                # Rule 8: No heart disease prediction with high risk factors
+                elif prediction == 0 and (sample[chol_idx] > 240 or 
+                                        sample[trestbps_idx] > 140 or 
+                                        sample[exang_idx] == 1):
+                    symbolic_scores[i] = 0.2  # Very low confidence
+                
+                # Rule 9: No heart disease prediction with normal values
+                elif prediction == 0 and (sample[chol_idx] < 200 and 
+                                        sample[trestbps_idx] < 120 and 
+                                        sample[exang_idx] == 0):
+                    symbolic_scores[i] = 1.0  # High confidence
+                
+                # Rule 10: Age-based rules
+                elif prediction == 1 and sample[age_idx] > 65:
+                    symbolic_scores[i] = 0.8  # Higher confidence for older patients
+                elif prediction == 0 and sample[age_idx] < 40:
+                    symbolic_scores[i] = 0.8  # Higher confidence for younger patients
+                
+                # Rule 11: Gender-based rules (if available)
+                elif prediction == 1 and sample[sex_idx] == 1:  # Male
+                    symbolic_scores[i] = 0.7  # Slightly higher confidence for males
+                elif prediction == 0 and sample[sex_idx] == 0:  # Female
+                    symbolic_scores[i] = 0.7  # Slightly higher confidence for females
+                
+                # Default case: neutral score (already set to 0.5)
+                else:
+                    symbolic_scores[i] = 0.5
+                    
+        except (IndexError, ValueError) as e:
+            # Fallback: use simple rules based on available features
+            logging.getLogger(__name__).warning(f"Using fallback symbolic rules: {e}")
+            
+            for i in range(n_samples):
+                prediction = predictions[i]
+                sample = data[i]
+                
+                # Simple fallback rules
+                if prediction == 1 and np.mean(sample) > 0.6:
+                    symbolic_scores[i] = 0.8
+                elif prediction == 0 and np.mean(sample) < 0.4:
+                    symbolic_scores[i] = 0.8
+                else:
+                    symbolic_scores[i] = 0.5
+        
+        return symbolic_scores
+    
     def _calculate_consistency_scores(self, data: np.ndarray, 
                                     labels: Optional[np.ndarray] = None) -> np.ndarray:
         """

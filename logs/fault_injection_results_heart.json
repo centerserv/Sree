@@ -1,13 +1,13 @@
 {
   "clean": {
-    "accuracy": 0.9130434782608695,
-    "trust": 0.888806338122674,
-    "convergence": false,
-    "iterations": 10,
-    "pattern_trust": 0.7349052521002714,
-    "presence_trust": 1.0,
+    "accuracy": 0.9565217391304348,
+    "trust": 0.9956504024306518,
+    "convergence": true,
+    "iterations": 11,
+    "pattern_trust": 1.0,
+    "presence_trust": 0.06754369566776938,
     "permanence_trust": 1.0,
-    "logic_trust": 0.9565217391304346
+    "logic_trust": 0.9391304347826086
   },
   "label_corruption": {
     "5.0%": {
@@ -27,18 +27,18 @@
         "actual_corruption_rate": 0.043859649122807015
       },
       "performance": {
-        "accuracy": 0.6956521739130435,
-        "trust": 0.889558846483878,
-        "convergence": false,
-        "iterations": 10,
-        "pattern_trust": 0.7349052521002714,
-        "presence_trust": 1.0,
+        "accuracy": 0.7391304347826086,
+        "trust": 0.9956504024306518,
+        "convergence": true,
+        "iterations": 11,
+        "pattern_trust": 1.0,
+        "presence_trust": 0.06754369566776938,
         "permanence_trust": 1.0,
-        "logic_trust": 0.9673913043478259
+        "logic_trust": 0.9543478260869565
       },
       "degradation": {
-        "accuracy_loss": 0.21739130434782605,
-        "trust_loss": -0.0007525083612039962
+        "accuracy_loss": 0.21739130434782616,
+        "trust_loss": 0.0
       }
     },
     "10.0%": {
@@ -64,18 +64,18 @@
         "actual_corruption_rate": 0.09649122807017543
       },
       "performance": {
-        "accuracy": 0.5217391304347826,
-        "trust": 0.8901608531728411,
-        "convergence": false,
-        "iterations": 10,
-        "pattern_trust": 0.7349052521002714,
-        "presence_trust": 1.0,
+        "accuracy": 0.4782608695652174,
+        "trust": 0.9956504024306518,
+        "convergence": true,
+        "iterations": 11,
+        "pattern_trust": 1.0,
+        "presence_trust": 0.06754369566776938,
         "permanence_trust": 1.0,
-        "logic_trust": 0.9760869565217389
+        "logic_trust": 0.9665217391304348
       },
       "degradation": {
-        "accuracy_loss": 0.3913043478260869,
-        "trust_loss": -0.0013545150501671488
+        "accuracy_loss": 0.4782608695652174,
+        "trust_loss": 0.0
       }
     },
     "15.0%": {
@@ -107,18 +107,18 @@
         "actual_corruption_rate": 0.14912280701754385
       },
       "performance": {
-        "accuracy": 0.2608695652173913,
-        "trust": 0.8910638632062858,
-        "convergence": false,
-        "iterations": 10,
-        "pattern_trust": 0.7349052521002714,
-        "presence_trust": 1.0,
+        "accuracy": 0.21739130434782608,
+        "trust": 0.9956504024306518,
+        "convergence": true,
+        "iterations": 11,
+        "pattern_trust": 1.0,
+        "presence_trust": 0.06754369566776938,
         "permanence_trust": 1.0,
-        "logic_trust": 0.9891304347826085
+        "logic_trust": 0.9847826086956522
       },
       "degradation": {
-        "accuracy_loss": 0.6521739130434783,
-        "trust_loss": -0.0022575250836118776
+        "accuracy_loss": 0.7391304347826088,
+        "trust_loss": 0.0
       }
     },
     "20.0%": {
@@ -155,18 +155,18 @@
         "actual_corruption_rate": 0.19298245614035087
       },
       "performance": {
-        "accuracy": 0.13043478260869565,
-        "trust": 0.8913648665507676,
-        "convergence": false,
-        "iterations": 10,
-        "pattern_trust": 0.7349052521002714,
-        "presence_trust": 1.0,
+        "accuracy": 0.08695652173913043,
+        "trust": 0.9956504024306518,
+        "convergence": true,
+        "iterations": 11,
+        "pattern_trust": 1.0,
+        "presence_trust": 0.06754369566776938,
         "permanence_trust": 1.0,
-        "logic_trust": 0.9934782608695651
+        "logic_trust": 0.9908695652173912
       },
       "degradation": {
-        "accuracy_loss": 0.7826086956521738,
-        "trust_loss": -0.002558528428093676
+        "accuracy_loss": 0.8695652173913044,
+        "trust_loss": 0.0
       }
     },
     "25.0%": {
@@ -210,17 +210,17 @@
       },
       "performance": {
         "accuracy": 0.08695652173913043,
-        "trust": 0.8556952764894502,
-        "convergence": false,
-        "iterations": 10,
-        "pattern_trust": 0.65220782552269,
-        "presence_trust": 1.0,
+        "trust": 0.996519660530326,
+        "convergence": true,
+        "iterations": 11,
+        "pattern_trust": 0.9999999517870828,
+        "presence_trust": 0.06754369566776938,
         "permanence_trust": 1.0,
-        "logic_trust": 0.9956521739130434
+        "logic_trust": 0.9939130434782608
       },
       "degradation": {
-        "accuracy_loss": 0.826086956521739,
-        "trust_loss": 0.03311106163322375
+        "accuracy_loss": 0.8695652173913044,
+        "trust_loss": -0.0008692580996741972
       }
     }
   },
@@ -235,18 +235,18 @@
         ]
       },
       "performance": {
-        "accuracy": 0.9130434782608695,
-        "trust": 0.8540414384521641,
-        "convergence": false,
-        "iterations": 10,
-        "pattern_trust": 0.655046100172807,
-        "presence_trust": 1.0,
+        "accuracy": 0.9565217391304348,
+        "trust": 0.9956504024306518,
+        "convergence": true,
+        "iterations": 11,
+        "pattern_trust": 1.0,
+        "presence_trust": 0.07741703934442082,
         "permanence_trust": 1.0,
-        "logic_trust": 0.9565217391304346
+        "logic_trust": 0.9391304347826086
       },
       "degradation": {
         "accuracy_loss": 0.0,
-        "trust_loss": 0.034764899670509886
+        "trust_loss": 0.0
       }
     },
     "10.0%": {
@@ -261,18 +261,18 @@
         ]
       },
       "performance": {
-        "accuracy": 0.9130434782608695,
-        "trust": 0.8512381658458159,
-        "convergence": false,
-        "iterations": 10,
-        "pattern_trust": 0.6495793716762972,
-        "presence_trust": 1.0,
+        "accuracy": 0.9565217391304348,
+        "trust": 0.9956504024306518,
+        "convergence": true,
+        "iterations": 11,
+        "pattern_trust": 1.0,
+        "presence_trust": 0.11997636247048851,
         "permanence_trust": 1.0,
-        "logic_trust": 0.9565217391304346
+        "logic_trust": 0.9391304347826086
       },
       "degradation": {
         "accuracy_loss": 0.0,
-        "trust_loss": 0.03756817227685805
+        "trust_loss": 0.0
       }
     },
     "15.0%": {
@@ -288,18 +288,18 @@
         ]
       },
       "performance": {
-        "accuracy": 0.9130434782608695,
-        "trust": 0.8511711526151438,
-        "convergence": false,
-        "iterations": 10,
-        "pattern_trust": 0.649399631546412,
-        "presence_trust": 1.0,
+        "accuracy": 0.9565217391304348,
+        "trust": 0.9956504024306518,
+        "convergence": true,
+        "iterations": 11,
+        "pattern_trust": 1.0,
+        "presence_trust": 0.11292488496672665,
         "permanence_trust": 1.0,
-        "logic_trust": 0.9565217391304346
+        "logic_trust": 0.9391304347826086
       },
       "degradation": {
         "accuracy_loss": 0.0,
-        "trust_loss": 0.0376351855075302
+        "trust_loss": 0.0
       }
     }
   }

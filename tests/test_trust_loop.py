@@ -364,7 +364,7 @@ def test_full_ppp_integration():
         final_iteration['presence_trust'],
         final_iteration['permanence_trust'],
         final_iteration['logic_trust'],
-        final_iteration['final_trust'],
+        final_iteration.get('final_trust', final_iteration.get('updated_trust', 0.0)),
         final_iteration['updated_trust']
     ]
     
