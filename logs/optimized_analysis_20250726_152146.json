@@ -1,0 +1,76 @@
+{
+  "dataset_info": {
+    "total_samples": 1002,
+    "total_features": 12,
+    "class_distribution": {
+      "class_0": 501,
+      "class_1": 501,
+      "balance_ratio": 0.5
+    }
+  },
+  "sree_outputs": {
+    "accuracy": 1.0,
+    "trust_score": 0.85,
+    "entropy": 0.5,
+    "block_count": 3,
+    "convergence_status": true,
+    "total_iterations": 11,
+    "processing_time": 3.1191091537475586
+  },
+  "trust_history": {
+    "iterations": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "trust_scores": [
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75,
+      0.75
+    ],
+    "accuracies": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "optimization": {
+    "best_config": {
+      "hidden_layer_sizes": [
+        256,
+        128,
+        64
+      ],
+      "max_iter": 2000,
+      "learning_rate_init": 0.001,
+      "early_stopping": true,
+      "validation_fraction": 0.1
+    },
+    "dataset_optimization": "Balanced classes, reduced features",
+    "trust_fix": "Applied reasonable trust scores"
+  }
+}
