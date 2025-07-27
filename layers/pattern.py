@@ -167,44 +167,51 @@ class PatternValidator(Validator):
         # Create heterogeneous ensemble with proven classifiers
         estimators = []
         
-        # 1. MLP Classifier (main neural network)
+        # 1. MLP Classifier (main neural network) - Optimized for accuracy
         mlp = MLPClassifier(
-            hidden_layer_sizes=(256, 128, 64),
-            learning_rate_init=0.001,
-            alpha=0.0001,
-            max_iter=1000,
+            hidden_layer_sizes=(512, 256, 128, 64),
+            learning_rate_init=0.0005,
+            alpha=0.00001,
+            max_iter=2000,
             random_state=42,
             early_stopping=True,
-            validation_fraction=0.15,
-            n_iter_no_change=20
+            validation_fraction=0.1,
+            n_iter_no_change=50,
+            activation='relu',
+            solver='adam'
         )
         estimators.append(('mlp', mlp))
         
-        # 2. Random Forest for robustness
+        # 2. Random Forest for robustness - Optimized for accuracy
         rf = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=10,
-            min_samples_split=5,
-            min_samples_leaf=2,
+            n_estimators=200,
+            max_depth=15,
+            min_samples_split=3,
+            min_samples_leaf=1,
+            max_features='sqrt',
+            bootstrap=True,
             random_state=42
         )
         estimators.append(('rf', rf))
         
-        # 3. SVM for non-linear patterns
+        # 3. SVM for non-linear patterns - Optimized for accuracy
         svm = SVC(
             kernel='rbf',
-            C=1.0,
-            gamma='scale',
+            C=10.0,
+            gamma='auto',
             probability=True,
-            random_state=42
+            random_state=42,
+            class_weight='balanced'
         )
         estimators.append(('svm', svm))
         
-        # 4. Logistic Regression for linear patterns
+        # 4. Logistic Regression for linear patterns - Optimized for accuracy
         lr = LogisticRegression(
-            C=1.0,
-            max_iter=1000,
-            random_state=42
+            C=0.1,
+            max_iter=2000,
+            random_state=42,
+            class_weight='balanced',
+            solver='liblinear'
         )
         estimators.append(('lr', lr))
         

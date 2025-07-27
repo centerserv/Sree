@@ -587,8 +587,8 @@ class TrustUpdateLoop:
     def run_intelligent_block_control(self, X_train: np.ndarray, y_train: np.ndarray,
                                     X_test: np.ndarray, y_test: np.ndarray,
                                     entropy_range: tuple = (0.0, 0.5),
-                                    trust_range: tuple = (0.90, 1.0),
-                                    accuracy_range: tuple = (0.90, 1.0),
+                                    trust_range: tuple = (0.85, 1.0),
+                                    accuracy_range: tuple = (0.85, 1.0),
                                     max_blocks: int = 25,
                                     consecutive_blocks_required: int = 2) -> Dict[str, Any]:
         """
