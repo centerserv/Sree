@@ -2465,7 +2465,7 @@ class SREEDashboard:
                 "Min Trust Score",
                 min_value=0.0,
                 max_value=1.0,
-                value=0.85,
+                value=0.90,
                 step=0.01,
                 help="Minimum acceptable trust score"
             )
@@ -2483,7 +2483,7 @@ class SREEDashboard:
                 "Min Accuracy (%)",
                 min_value=0.0,
                 max_value=100.0,
-                value=85.0,
+                value=90.0,
                 step=0.1,
                 help="Minimum acceptable accuracy percentage"
             )
