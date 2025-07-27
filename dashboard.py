@@ -957,10 +957,9 @@ class SREEDashboard:
             self.create_client_results_section()
             
         elif page == "📊 Heart Disease Report":
-            self.create_block_logs_section()
+            self.create_heart_disease_report_section()
         elif page == "🎯 Intelligent Block Control":
             self.create_intelligent_block_control_section()
-        self.create_heart_disease_report_section()
         
         # Footer
         st.markdown("---")
