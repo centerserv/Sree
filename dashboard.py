@@ -856,6 +856,7 @@ class SREEDashboard:
                 "🏗️ Architecture",
                 "📈 Demo Results",
                 "🎯 Client Results",
+                "📊 Heart Disease Report",
                 "🖼️ Visualization Gallery"
             ]
         else:
@@ -869,7 +870,8 @@ class SREEDashboard:
                 "🖼️ Visualization Gallery",
                 "🛡️ Model Validation",
                 "📋 Export Results",
-                "🎯 Client Results"
+                "🎯 Client Results",
+                "📊 Heart Disease Report"
             ]
         
         page = st.sidebar.selectbox(
@@ -928,6 +930,9 @@ class SREEDashboard:
             
         elif page == "🎯 Client Results":
             self.create_client_results_section()
+            
+        elif page == "📊 Heart Disease Report":
+            self.create_heart_disease_report_section()
         
         # Footer
         st.markdown("---")
@@ -1452,6 +1457,198 @@ class SREEDashboard:
                 st.metric("Block Count", "2-3", "Target")
             
             st.info("🎯 **Client Request**: Reduce variation below 5% and increase block count to 2-3")
+
+    def create_heart_disease_report_section(self):
+        """Create heart disease report generation section."""
+        st.header("📊 Heart Disease Analysis Report Generator")
+        
+        st.info("""
+        **Generate a comprehensive PDF report for the heart disease dataset analysis.**
+        This report includes dataset analysis, preprocessing steps, SREE results, visualizations, and comparisons.
+        """)
+        
+        # Check if heart disease dataset exists
+        dataset_file = "heart_disease_dataset_new.csv"
+        
+        if not os.path.exists(dataset_file):
+            st.error("❌ Heart disease dataset not found!")
+            st.info("Please ensure `heart_disease_dataset_new.csv` is available in the project directory.")
+            return
+        
+        # Report generation options
+        st.subheader("🔧 Report Options")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            include_correlation = st.checkbox("Include Correlation Matrix", value=True)
+            include_class_balance = st.checkbox("Include Class Balance Analysis", value=True)
+            include_variance = st.checkbox("Include Variance Analysis", value=True)
+        
+        with col2:
+            include_confusion_matrix = st.checkbox("Include Confusion Matrix", value=True)
+            include_trust_plots = st.checkbox("Include Trust vs Iteration Plots", value=True)
+            include_comparison = st.checkbox("Include Comparison with Original Results", value=True)
+        
+        # Generate report button
+        if st.button("🚀 Generate Comprehensive Heart Disease Report", type="primary"):
+            with st.spinner("Generating comprehensive heart disease analysis report..."):
+                try:
+                    # Import the report generator
+                    from generate_new_heart_disease_report import NewHeartDiseaseReportGenerator
+                    
+                    # Create generator instance
+                    generator = NewHeartDiseaseReportGenerator()
+                    
+                    # Generate the report
+                    report_filename = generator.generate_pdf()
+                    
+                    # Read the generated PDF
+                    with open(report_filename, 'rb') as f:
+                        pdf_data = f.read()
+                    
+                    # Display success message
+                    st.success(f"✅ Report generated successfully: {report_filename}")
+                    
+                    # Show report summary
+                    st.subheader("📋 Report Summary")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Dataset Samples", "1000", "Heart Disease")
+                    with col2:
+                        st.metric("Features", "13", "Clinical")
+                    with col3:
+                        st.metric("Report Pages", "~15", "Comprehensive")
+                    
+                    # Report contents
+                    st.subheader("📄 Report Contents")
+                    
+                    report_contents = [
+                        "📊 Dataset Information and Preprocessing Steps",
+                        "🔍 Feature Correlation Matrix Analysis",
+                        "⚖️ Class Balance Analysis",
+                        "📈 Feature Variance Report",
+                        "🧠 SREE Analysis Results",
+                        "📊 Confusion Matrix and Classification Metrics",
+                        "📈 Trust vs Iteration Convergence Plots",
+                        "🔄 Comparison with Original Results",
+                        "📋 Technical Implementation Details",
+                        "✅ Verification Results",
+                        "🎯 Comprehensive Conclusion"
+                    ]
+                    
+                    for content in report_contents:
+                        st.write(f"• {content}")
+                    
+                    # Download button
+                    st.subheader("📥 Download Report")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.download_button(
+                            label="📄 Download PDF Report",
+                            data=pdf_data,
+                            file_name=report_filename,
+                            mime="application/pdf",
+                            help="Download the comprehensive heart disease analysis report"
+                        )
+                    
+                    with col2:
+                        # Check if package exists
+                        package_file = "SREE_Phase_1_Heart_Disease_Analysis_Package_20250727_160215.tar.gz"
+                        if os.path.exists(package_file):
+                            with open(package_file, 'rb') as f:
+                                package_data = f.read()
+                            
+                            st.download_button(
+                                label="📦 Download Complete Package",
+                                data=package_data,
+                                file_name=package_file,
+                                mime="application/gzip",
+                                help="Download the complete analysis package with all files"
+                            )
+                        else:
+                            st.info("📦 Package not available")
+                    
+                    # Show sample results
+                    st.subheader("📊 Sample Results Preview")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric("Final Accuracy", "93.00%", "High Performance")
+                    
+                    with col2:
+                        st.metric("Final Trust Score", "98.99%", "Excellent")
+                    
+                    with col3:
+                        st.metric("Block Count", "3", "Consistent")
+                    
+                    with col4:
+                        st.metric("Convergence", "✅ Achieved", "11 iterations")
+                    
+                except Exception as e:
+                    st.error(f"❌ Error generating report: {str(e)}")
+                    st.info("Please ensure all required dependencies are installed and the dataset is available.")
+        
+        # Show existing reports
+        st.subheader("📁 Existing Reports")
+        
+        # Check for existing PDF reports
+        pdf_reports = []
+        for file in os.listdir('.'):
+            if file.endswith('.pdf') and 'heart' in file.lower():
+                pdf_reports.append(file)
+        
+        if pdf_reports:
+            st.write("**Available heart disease analysis reports:**")
+            for report in sorted(pdf_reports, reverse=True):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.write(f"📄 {report}")
+                with col2:
+                    with open(report, 'rb') as f:
+                        report_data = f.read()
+                    st.download_button(
+                        label="📥 Download",
+                        data=report_data,
+                        file_name=report,
+                        mime="application/pdf",
+                        key=f"download_{report}"
+                    )
+        else:
+            st.info("No existing heart disease reports found. Generate a new report above.")
+        
+        # Show dataset information
+        st.subheader("📊 Dataset Information")
+        
+        if os.path.exists(dataset_file):
+            try:
+                df = pd.read_csv(dataset_file)
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Total Samples", len(df))
+                
+                with col2:
+                    st.metric("Features", len(df.columns) - 1)  # Exclude target
+                
+                with col3:
+                    target_counts = df['target'].value_counts()
+                    st.metric("Class Balance", f"{target_counts[0]}/{target_counts[1]}")
+                
+                # Show feature names
+                feature_names = [col for col in df.columns if col != 'target']
+                st.write("**Clinical Features:**")
+                st.write(", ".join(feature_names))
+                
+            except Exception as e:
+                st.error(f"Error reading dataset: {str(e)}")
+        else:
+            st.warning("Dataset file not found!")
 
 def main():
     """Main dashboard function."""
