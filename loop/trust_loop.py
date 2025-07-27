@@ -588,6 +588,144 @@ class TrustUpdateLoop:
         
         return results
     
+    def run_intelligent_block_control(self, X_train: np.ndarray, y_train: np.ndarray,
+                                    X_test: np.ndarray, y_test: np.ndarray,
+                                    entropy_range: tuple = (0.0, 0.25),
+                                    trust_range: tuple = (0.95, 1.0),
+                                    accuracy_range: tuple = (0.97, 1.0),
+                                    max_blocks: int = 25,
+                                    consecutive_blocks_required: int = 2) -> Dict[str, Any]:
+        """
+        Run intelligent block creation control with configurable ranges.
+        
+        Args:
+            X_train, y_train, X_test, y_test: Training and test data
+            entropy_range: (min_entropy, max_entropy) - normalized H(p)/log(d)
+            trust_range: (min_trust, max_trust) - trust score range
+            accuracy_range: (min_accuracy, max_accuracy) - accuracy range
+            max_blocks: Maximum number of blocks allowed
+            consecutive_blocks_required: Number of consecutive blocks in range to stop
+            
+        Returns:
+            Dictionary with control results and block history
+        """
+        self.logger.info("🚀 Starting Intelligent Block Control System")
+        self.logger.info(f"📊 Target Ranges - Entropy: {entropy_range}, Trust: {trust_range}, Accuracy: {accuracy_range}")
+        self.logger.info(f"🛑 Stop Conditions: {consecutive_blocks_required} consecutive blocks in range OR {max_blocks} max blocks")
+        
+        # Initialize control variables
+        block = 1
+        consecutive_in_range = 0
+        block_history = []
+        stop_reason = None
+        
+        # Extract range thresholds
+        min_entropy, max_entropy = entropy_range
+        min_trust, max_trust = trust_range
+        min_accuracy, max_accuracy = accuracy_range
+        
+        while block <= max_blocks:
+            self.logger.info(f"🔄 Starting Block {block}/{max_blocks}")
+            
+            # Run the PPP trust loop for this block
+            try:
+                results = self.run_ppp_loop(X_train, y_train, X_test, y_test)
+                
+                # Extract metrics from results
+                final_entropy = results.get('final_entropy', 0.0)
+                final_trust = results.get('final_trust', 0.0)
+                final_accuracy = results.get('final_accuracy', 0.0)
+                
+                # Check if metrics are within range
+                is_entropy_ok = min_entropy <= final_entropy <= max_entropy
+                is_trust_ok = min_trust <= final_trust <= max_trust
+                is_accuracy_ok = min_accuracy <= final_accuracy <= max_accuracy
+                
+                all_metrics_ok = is_entropy_ok and is_trust_ok and is_accuracy_ok
+                
+                # Update consecutive counter
+                if all_metrics_ok:
+                    consecutive_in_range += 1
+                    self.logger.info(f"✅ Block {block}: All metrics within range (consecutive: {consecutive_in_range})")
+                else:
+                    consecutive_in_range = 0
+                    self.logger.info(f"⚠️ Block {block}: Some metrics out of range (consecutive reset to 0)")
+                
+                # Log detailed metrics
+                block_info = {
+                    'block_number': block,
+                    'entropy': final_entropy,
+                    'trust_score': final_trust,
+                    'accuracy': final_accuracy,
+                    'entropy_in_range': is_entropy_ok,
+                    'trust_in_range': is_trust_ok,
+                    'accuracy_in_range': is_accuracy_ok,
+                    'all_metrics_ok': all_metrics_ok,
+                    'consecutive_in_range': consecutive_in_range,
+                    'status': 'within_range' if all_metrics_ok else 'out_of_range'
+                }
+                
+                block_history.append(block_info)
+                
+                # Log detailed block metrics
+                self.logger.info(f"📊 Block {block} Metrics:")
+                self.logger.info(f"   Entropy: {final_entropy:.6f} (range: {min_entropy:.3f}-{max_entropy:.3f}) {'✅' if is_entropy_ok else '❌'}")
+                self.logger.info(f"   Trust: {final_trust:.6f} (range: {min_trust:.3f}-{max_trust:.3f}) {'✅' if is_trust_ok else '❌'}")
+                self.logger.info(f"   Accuracy: {final_accuracy:.6f} (range: {min_accuracy:.3f}-{max_accuracy:.3f}) {'✅' if is_accuracy_ok else '❌'}")
+                
+                # Check stop conditions
+                if consecutive_in_range >= consecutive_blocks_required:
+                    stop_reason = f"All metrics within range for {consecutive_blocks_required} consecutive blocks"
+                    self.logger.info(f"🎯 STOPPING: {stop_reason}")
+                    break
+                    
+            except Exception as e:
+                self.logger.error(f"❌ Error in Block {block}: {str(e)}")
+                block_info = {
+                    'block_number': block,
+                    'error': str(e),
+                    'status': 'error'
+                }
+                block_history.append(block_info)
+                consecutive_in_range = 0
+            
+            block += 1
+        
+        # Check if stopped due to max blocks
+        if block > max_blocks and stop_reason is None:
+            stop_reason = f"Maximum block limit ({max_blocks}) reached"
+            self.logger.info(f"🛑 STOPPING: {stop_reason}")
+        
+        # Prepare final results
+        final_results = {
+            'total_blocks': len(block_history),
+            'blocks_in_range': sum(1 for b in block_history if b.get('all_metrics_ok', False)),
+            'blocks_out_of_range': sum(1 for b in block_history if not b.get('all_metrics_ok', True)),
+            'consecutive_blocks_achieved': consecutive_in_range,
+            'stop_reason': stop_reason,
+            'final_metrics': block_history[-1] if block_history else None,
+            'block_history': block_history,
+            'target_ranges': {
+                'entropy': entropy_range,
+                'trust': trust_range,
+                'accuracy': accuracy_range
+            },
+            'control_config': {
+                'max_blocks': max_blocks,
+                'consecutive_blocks_required': consecutive_blocks_required
+            }
+        }
+        
+        # Log final summary
+        self.logger.info("📋 Intelligent Block Control Summary:")
+        self.logger.info(f"   Total Blocks: {final_results['total_blocks']}")
+        self.logger.info(f"   Blocks in Range: {final_results['blocks_in_range']}")
+        self.logger.info(f"   Blocks out of Range: {final_results['blocks_out_of_range']}")
+        self.logger.info(f"   Consecutive Blocks Achieved: {final_results['consecutive_blocks_achieved']}")
+        self.logger.info(f"   Stop Reason: {final_results['stop_reason']}")
+        
+        return final_results
+    
     def _apply_recursive_trust_formulas(self, v_q: np.ndarray, v_b: np.ndarray, v_l: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
         Apply recursive trust update formulas.

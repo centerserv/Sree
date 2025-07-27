@@ -885,6 +885,7 @@ class SREEDashboard:
                 "📊 Results & Metrics",
                 "📈 Visualizations",
                 "🔍 Advanced Tracking",
+                "🎯 Intelligent Block Control",
                 "🖼️ Visualization Gallery",
                 "🛡️ Model Validation",
                 "📋 Export Results",
@@ -957,6 +958,8 @@ class SREEDashboard:
             
         elif page == "📊 Heart Disease Report":
             self.create_block_logs_section()
+        elif page == "🎯 Intelligent Block Control":
+            self.create_intelligent_block_control_section()
         self.create_heart_disease_report_section()
         
         # Footer
@@ -2424,6 +2427,268 @@ class SREEDashboard:
             st.error(f"❌ Error loading block logs from {os.path.basename(most_recent_file)}: {str(e)}")
         
         return block_logs
+
+    def create_intelligent_block_control_section(self):
+        """
+        Create the intelligent block control section with configurable ranges.
+        """
+        st.title("🎯 Intelligent Block Control System")
+        st.markdown("Configure and run the intelligent block creation control with automatic stopping conditions.")
+        
+        # Configuration section
+        st.subheader("⚙️ Control Configuration")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📊 Target Ranges**")
+            
+            # Entropy range
+            entropy_min = st.number_input(
+                "Min Entropy (normalized H(p)/log(d))",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.0,
+                step=0.01,
+                help="Minimum acceptable entropy value"
+            )
+            entropy_max = st.number_input(
+                "Max Entropy (normalized H(p)/log(d))",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.25,
+                step=0.01,
+                help="Maximum acceptable entropy value"
+            )
+            
+            # Trust range
+            trust_min = st.number_input(
+                "Min Trust Score",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.95,
+                step=0.01,
+                help="Minimum acceptable trust score"
+            )
+            trust_max = st.number_input(
+                "Max Trust Score",
+                min_value=0.0,
+                max_value=1.0,
+                value=1.0,
+                step=0.01,
+                help="Maximum acceptable trust score"
+            )
+            
+            # Accuracy range
+            accuracy_min = st.number_input(
+                "Min Accuracy (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=97.0,
+                step=0.1,
+                help="Minimum acceptable accuracy percentage"
+            )
+            accuracy_max = st.number_input(
+                "Max Accuracy (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=100.0,
+                step=0.1,
+                help="Maximum acceptable accuracy percentage"
+            )
+        
+        with col2:
+            st.markdown("**🛑 Stop Conditions**")
+            
+            max_blocks = st.number_input(
+                "Maximum Blocks",
+                min_value=1,
+                max_value=50,
+                value=25,
+                step=1,
+                help="Hard limit for maximum number of blocks"
+            )
+            
+            consecutive_blocks = st.number_input(
+                "Consecutive Blocks Required",
+                min_value=1,
+                max_value=10,
+                value=2,
+                step=1,
+                help="Number of consecutive blocks in range to stop"
+            )
+            
+            st.markdown("**📁 Dataset Selection**")
+            dataset_option = st.selectbox(
+                "Select Dataset",
+                ["Heart Disease", "Synthetic Credit Risk", "Custom Upload"],
+                help="Choose dataset for intelligent block control"
+            )
+        
+        # Display current configuration
+        st.subheader("📋 Current Configuration")
+        
+        config_col1, config_col2, config_col3 = st.columns(3)
+        
+        with config_col1:
+            st.metric("Entropy Range", f"{entropy_min:.3f} - {entropy_max:.3f}")
+            st.metric("Trust Range", f"{trust_min:.3f} - {trust_max:.3f}")
+        
+        with config_col2:
+            st.metric("Accuracy Range", f"{accuracy_min:.1f}% - {accuracy_max:.1f}%")
+            st.metric("Max Blocks", max_blocks)
+        
+        with config_col3:
+            st.metric("Consecutive Blocks", consecutive_blocks)
+            st.metric("Dataset", dataset_option)
+        
+        # Run button
+        st.subheader("🚀 Execute Intelligent Block Control")
+        
+        if st.button("🎯 Start Intelligent Block Control", type="primary"):
+            with st.spinner("Running intelligent block control..."):
+                try:
+                    # Prepare ranges
+                    entropy_range = (entropy_min, entropy_max)
+                    trust_range = (trust_min, trust_max)
+                    accuracy_range = (accuracy_min / 100.0, accuracy_max / 100.0)  # Convert to decimal
+                    
+                    # Load dataset
+                    if dataset_option == "Heart Disease":
+                        from data_loader import DataLoader
+                        loader = DataLoader()
+                        X, y = loader.load_heart()
+                    elif dataset_option == "Synthetic Credit Risk":
+                        from data_loader import DataLoader
+                        loader = DataLoader()
+                        X, y = loader.load_synthetic_credit_risk()
+                    else:
+                        if st.session_state.uploaded_df is not None:
+                            X = st.session_state.uploaded_df.drop(columns=[st.session_state.uploaded_df.columns[-1]]).values
+                            y = st.session_state.uploaded_df.iloc[:, -1].values
+                        else:
+                            st.error("❌ Please upload a custom dataset first")
+                            return
+                    
+                    # Split data
+                    from sklearn.model_selection import train_test_split
+                    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                    
+                    # Initialize trust loop
+                    from loop.trust_loop import create_trust_loop
+                    from layers.pattern import create_pattern_validator
+                    from layers.presence import create_presence_validator
+                    from layers.permanence import create_permanence_validator
+                    from layers.logic import create_logic_validator
+                    
+                    pattern_validator = create_pattern_validator()
+                    presence_validator = create_presence_validator()
+                    permanence_validator = create_permanence_validator()
+                    logic_validator = create_logic_validator()
+                    
+                    trust_loop = create_trust_loop(
+                        validators=[pattern_validator, presence_validator, permanence_validator, logic_validator],
+                        max_iterations=10,
+                        trust_threshold=0.8
+                    )
+                    
+                    # Run intelligent block control
+                    results = trust_loop.run_intelligent_block_control(
+                        X_train, y_train, X_test, y_test,
+                        entropy_range=entropy_range,
+                        trust_range=trust_range,
+                        accuracy_range=accuracy_range,
+                        max_blocks=max_blocks,
+                        consecutive_blocks_required=consecutive_blocks
+                    )
+                    
+                    # Display results
+                    self._display_intelligent_block_results(results)
+                    
+                except Exception as e:
+                    st.error(f"❌ Error running intelligent block control: {str(e)}")
+                    st.info("Please check the configuration and try again.")
+    
+    def _display_intelligent_block_results(self, results: dict):
+        """
+        Display intelligent block control results.
+        """
+        st.subheader("📊 Intelligent Block Control Results")
+        
+        # Summary metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total Blocks", results['total_blocks'])
+        
+        with col2:
+            st.metric("Blocks in Range", results['blocks_in_range'])
+        
+        with col3:
+            st.metric("Blocks out of Range", results['blocks_out_of_range'])
+        
+        with col4:
+            st.metric("Consecutive Achieved", results['consecutive_blocks_achieved'])
+        
+        # Stop reason
+        st.info(f"🛑 **Stop Reason:** {results['stop_reason']}")
+        
+        # Block history table
+        st.subheader("📋 Block History")
+        
+        if results['block_history']:
+            # Prepare data for table
+            history_data = []
+            for block in results['block_history']:
+                if 'error' not in block:
+                    history_data.append({
+                        'Block': block['block_number'],
+                        'Entropy': f"{block['entropy']:.6f}",
+                        'Trust': f"{block['trust_score']:.6f}",
+                        'Accuracy': f"{block['accuracy']:.6f}",
+                        'Status': block['status'],
+                        'In Range': '✅' if block['all_metrics_ok'] else '❌'
+                    })
+                else:
+                    history_data.append({
+                        'Block': block['block_number'],
+                        'Entropy': 'ERROR',
+                        'Trust': 'ERROR',
+                        'Accuracy': 'ERROR',
+                        'Status': 'ERROR',
+                        'In Range': '❌'
+                    })
+            
+            st.dataframe(history_data, use_container_width=True)
+        
+        # Target ranges used
+        st.subheader("🎯 Target Ranges Used")
+        
+        ranges_col1, ranges_col2, ranges_col3 = st.columns(3)
+        
+        with ranges_col1:
+            st.metric("Entropy Range", f"{results['target_ranges']['entropy'][0]:.3f} - {results['target_ranges']['entropy'][1]:.3f}")
+        
+        with ranges_col2:
+            st.metric("Trust Range", f"{results['target_ranges']['trust'][0]:.3f} - {results['target_ranges']['trust'][1]:.3f}")
+        
+        with ranges_col3:
+            acc_range = results['target_ranges']['accuracy']
+            st.metric("Accuracy Range", f"{acc_range[0]*100:.1f}% - {acc_range[1]*100:.1f}%")
+        
+        # Download results
+        st.subheader("📥 Download Results")
+        
+        import json
+        results_json = json.dumps(results, indent=2, default=str)
+        
+        st.download_button(
+            label="📄 Download Block Control Results (JSON)",
+            data=results_json,
+            file_name="intelligent_block_control_results.json",
+            mime="application/json",
+            help="Download the complete intelligent block control results"
+        )
 
 def main():
     """Main dashboard function."""
