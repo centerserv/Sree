@@ -196,6 +196,25 @@ class TrustUpdateLoop:
             y_test_formatted = np.array(y_test).astype(int)
             accuracy = np.mean(final_predictions == y_test_formatted)
             
+            # Step 6.5: Update cycle information for enhanced block logging
+            if self._permanence_validator is not None:
+                validator_outcomes = {
+                    "v_q": float(np.mean(v_q)),
+                    "v_b": float(np.mean(v_b)),
+                    "v_l": float(np.mean(v_l))
+                }
+                self._permanence_validator.update_cycle_info(
+                    iteration_number=iteration + 1,
+                    validator_outcomes=validator_outcomes,
+                    trust_score=float(np.mean(updated_trust)),
+                    cycle_data={
+                        "accuracy": float(accuracy),
+                        "pattern_trust": float(np.mean(pattern_trust)),
+                        "presence_trust": float(np.mean(presence_trust)),
+                        "logic_trust": float(np.mean(logic_trust))
+                    }
+                )
+            
             # Step 7: Check convergence
             convergence = self._check_convergence(updated_trust, accuracy)
             

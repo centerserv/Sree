@@ -47,6 +47,14 @@ class PermanenceValidator(Validator):
         self._previous_hashes = {}  # Store previous hashes for each sample
         self._current_hashes = {}   # Store current hashes for each sample
         
+        # Cycle tracking for enhanced block logging
+        self._current_cycle_info = {
+            "iteration_number": None,
+            "validator_outcomes": {},
+            "trust_score": None,
+            "cycle_data": {}
+        }
+        
         # Get permanence configuration
         permanence_config = PPP_CONFIG["permanence"].copy()
         permanence_config.update(kwargs)
@@ -109,15 +117,36 @@ class PermanenceValidator(Validator):
         # Create blocks when there's enough data to warrant a new block
         if len(self._current_block) >= self._block_size:
             # Always create a block when we have a full block of data
-            self._finalize_block()
+            self._finalize_block(
+                iteration_number=self._current_cycle_info["iteration_number"],
+                validator_outcomes=self._current_cycle_info["validator_outcomes"],
+                trust_score=self._current_cycle_info["trust_score"],
+                cycle_data=self._current_cycle_info["cycle_data"]
+            )
         elif len(self._current_block) >= self._block_size // 2:
             # Create a block if we have at least half a block and no blocks exist yet
             if len(self._ledger) == 0:
-                self._finalize_block()
+                self._finalize_block(
+                    iteration_number=self._current_cycle_info["iteration_number"],
+                    validator_outcomes=self._current_cycle_info["validator_outcomes"],
+                    trust_score=self._current_cycle_info["trust_score"],
+                    cycle_data=self._current_cycle_info["cycle_data"]
+                )
         
         # Ensure at least one block is created if we have sufficient data
         if len(self._current_block) >= self._block_size and len(self._ledger) == 0:
-            self._finalize_block()
+            # For the first block, use default values if cycle info is not available
+            iteration_number = self._current_cycle_info["iteration_number"] or 0
+            validator_outcomes = self._current_cycle_info["validator_outcomes"] or {"v_q": 0.5, "v_b": 0.5, "v_l": 0.5}
+            trust_score = self._current_cycle_info["trust_score"] or 0.5
+            cycle_data = self._current_cycle_info["cycle_data"] or {"accuracy": 0.0, "pattern_trust": 0.5, "presence_trust": 0.5, "logic_trust": 0.5}
+            
+            self._finalize_block(
+                iteration_number=iteration_number,
+                validator_outcomes=validator_outcomes,
+                trust_score=trust_score,
+                cycle_data=cycle_data
+            )
         
         # Calculate final consistency-based trust scores
         final_trust_scores = self._calculate_consistency_scores(data, validation_records)
@@ -132,6 +161,26 @@ class PermanenceValidator(Validator):
                    f"total blocks: {len(self._ledger)}")
         
         return final_trust_scores
+    
+    def update_cycle_info(self, iteration_number: int = None, validator_outcomes: Dict[str, float] = None, 
+                         trust_score: float = None, cycle_data: Dict[str, Any] = None):
+        """
+        Update cycle information for enhanced block logging.
+        
+        Args:
+            iteration_number: Current iteration/cycle number
+            validator_outcomes: Dictionary with Vq, Vb, Vl values
+            trust_score: Updated trust score for this cycle
+            cycle_data: Additional cycle-specific data
+        """
+        if iteration_number is not None:
+            self._current_cycle_info["iteration_number"] = iteration_number
+        if validator_outcomes is not None:
+            self._current_cycle_info["validator_outcomes"] = validator_outcomes
+        if trust_score is not None:
+            self._current_cycle_info["trust_score"] = trust_score
+        if cycle_data is not None:
+            self._current_cycle_info["cycle_data"] = cycle_data
     
     def calculate_blockchain_validation(self, labels: np.ndarray, probabilities: np.ndarray) -> np.ndarray:
         """
@@ -264,17 +313,30 @@ class PermanenceValidator(Validator):
         
         return hash_obj.hexdigest()
     
-    def _finalize_block(self):
-        """Finalize the current block and add it to the ledger."""
+    def _finalize_block(self, iteration_number: int = None, validator_outcomes: Dict[str, float] = None, 
+                       trust_score: float = None, cycle_data: Dict[str, Any] = None):
+        """
+        Finalize the current block and add it to the ledger with enhanced blockchain-style logging.
+        
+        Args:
+            iteration_number: Current iteration/cycle number
+            validator_outcomes: Dictionary with Vq, Vb, Vl values
+            trust_score: Updated trust score for this cycle
+            cycle_data: Additional cycle-specific data
+        """
         if not self._current_block:
             return
         
-        # Create block header
+        # Create enhanced block header with cycle information
         block_header = {
             "block_number": self._block_counter,
+            "iteration_number": iteration_number,
             "timestamp": datetime.now().isoformat(),
             "record_count": len(self._current_block),
-            "previous_hash": self._get_previous_hash()
+            "previous_hash": self._get_previous_hash(),
+            "validator_outcomes": validator_outcomes or {},
+            "trust_score": trust_score,
+            "cycle_data": cycle_data or {}
         }
         
         # Create block hash
@@ -291,12 +353,24 @@ class PermanenceValidator(Validator):
         # Add to ledger
         self._ledger.append(block)
         
+        # Enhanced logging as if recording a new block in a blockchain
+        logger = logging.getLogger(__name__)
+        logger.info(f"=== BLOCK {block_header['block_number']} FINALIZED ===")
+        logger.info(f"  Iteration: {iteration_number}")
+        logger.info(f"  Records: {block_header['record_count']}")
+        logger.info(f"  Trust Score: {trust_score:.4f}" if trust_score else "  Trust Score: N/A")
+        if validator_outcomes:
+            logger.info(f"  Validator Outcomes:")
+            logger.info(f"    Vq (Quantum): {validator_outcomes.get('v_q', 'N/A'):.4f}")
+            logger.info(f"    Vb (Blockchain): {validator_outcomes.get('v_b', 'N/A'):.4f}")
+            logger.info(f"    Vl (Logic): {validator_outcomes.get('v_l', 'N/A'):.4f}")
+        logger.info(f"  Block Hash: {block_hash[:16]}...")
+        logger.info(f"  Previous Hash: {block_header['previous_hash'][:16]}...")
+        logger.info("=" * 50)
+        
         # Reset current block
         self._current_block = []
         self._block_counter += 1
-        
-        logging.getLogger(__name__).info(f"Block {block_header['block_number']} finalized "
-                                        f"with {block_header['record_count']} records")
     
     def _get_previous_hash(self) -> str:
         """Get hash of the previous block."""
