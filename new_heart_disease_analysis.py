@@ -314,8 +314,8 @@ class NewHeartDiseaseAnalyzer:
             'final_trust': float(final_results['final_trust']),
             'convergence': bool(final_results['convergence_achieved']),
             'iterations': len(final_results['iterations']),
-            'block_count': 3,  # Default block count
-            'entropy': 3.6  # Default entropy
+            'block_count': int(block_count),  # Use actual block count from permanence layer
+            'entropy': float(entropy)  # Use actual entropy from presence layer
         }
         
         # Extract trust history

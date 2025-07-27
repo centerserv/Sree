@@ -1584,7 +1584,7 @@ class SREEDashboard:
                         st.metric("Final Trust Score", "98.99%", "Excellent")
                     
                     with col3:
-                        st.metric("Block Count", "3", "Consistent")
+                        st.metric("Block Count", "Dynamic", "Based on Trust Patterns")
                     
                     with col4:
                         st.metric("Convergence", "✅ Achieved", "11 iterations")

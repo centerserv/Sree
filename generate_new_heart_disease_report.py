@@ -263,7 +263,7 @@ class NewHeartDiseaseReportGenerator:
             'final_trust': float(trust),
             'convergence': bool(final_results.get('convergence_achieved', False)),
             'iterations': len(final_results.get('iterations', [])),
-            'block_count': int(block_count),
+            'block_count': int(block_count),  # Use actual block count from permanence layer
             'entropy': float(entropy),
             'pattern_trust_mean': float(np.mean(pattern_trust)),
             'presence_trust_mean': float(np.mean(presence_trust)),

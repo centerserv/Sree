@@ -105,12 +105,18 @@ class PermanenceValidator(Validator):
             if len(self._current_block) > 0:
                 self._finalize_block()
         
-        # Ensure minimum block creation for convergence
-        if len(self._current_block) >= self._block_size // 2 and len(self._ledger) < 3:
+        # Natural block creation based on data processing needs
+        # Create blocks when there's enough data to warrant a new block
+        if len(self._current_block) >= self._block_size:
+            # Always create a block when we have a full block of data
             self._finalize_block()
+        elif len(self._current_block) >= self._block_size // 2:
+            # Create a block if we have at least half a block and no blocks exist yet
+            if len(self._ledger) == 0:
+                self._finalize_block()
         
-        # Always finalize at least one block if we have records
-        if len(self._current_block) > 0 and len(self._ledger) == 0:
+        # Ensure at least one block is created if we have sufficient data
+        if len(self._current_block) >= self._block_size and len(self._ledger) == 0:
             self._finalize_block()
         
         # Calculate final consistency-based trust scores
