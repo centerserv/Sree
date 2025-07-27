@@ -580,10 +580,6 @@ class TrustUpdateLoop:
             tracking_logs = self.save_tracking_logs()
             results["tracking_logs"] = tracking_logs
             
-            # Generate visualizations
-            visualizations = self.generate_tracking_visualizations()
-            results["tracking_visualizations"] = visualizations
-            
             logger.info("Advanced tracking completed and saved")
         
         return results
@@ -715,6 +711,12 @@ class TrustUpdateLoop:
                 'consecutive_blocks_required': consecutive_blocks_required
             }
         }
+        
+        # Generate visualizations only at the end of the entire execution
+        if hasattr(self, '_weight_tracker') and self._weight_tracker is not None:
+            self.logger.info("📊 Generating final tracking visualizations...")
+            visualizations = self.generate_tracking_visualizations()
+            final_results["tracking_visualizations"] = visualizations
         
         # Log final summary
         self.logger.info("📋 Intelligent Block Control Summary:")
