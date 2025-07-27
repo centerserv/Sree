@@ -64,6 +64,12 @@ class PermanenceValidator(Validator):
         
         # Call parent constructor last
         super().__init__(name=name)
+        
+        # Enhanced configuration for better performance
+        self._adaptive_block_size = True
+        self._confidence_weight = 0.8
+        self._consistency_weight = 0.2
+        self._hash_verification_enabled = True
     
     def validate(self, data: np.ndarray, labels: Optional[np.ndarray] = None) -> np.ndarray:
         """
@@ -383,7 +389,7 @@ class PermanenceValidator(Validator):
     def _calculate_consistency_scores(self, data: np.ndarray, 
                                     records: List[Dict[str, Any]]) -> np.ndarray:
         """
-        Calculate consistency-based trust scores.
+        Calculate enhanced consistency-based trust scores with adaptive weighting.
         
         Args:
             data: Input features
@@ -394,7 +400,7 @@ class PermanenceValidator(Validator):
         """
         trust_scores = np.ones(len(data))
         
-        # Check for duplicate samples (same hash)
+        # Enhanced duplicate detection with adaptive penalties
         hash_counts = {}
         for record in records:
             sample_hash = record["sample_hash"]
@@ -403,35 +409,58 @@ class PermanenceValidator(Validator):
             else:
                 hash_counts[sample_hash] = 1
         
-        # Reduce trust for duplicate samples
+        # Adaptive duplicate penalty based on frequency
         for i, record in enumerate(records):
             sample_hash = record["sample_hash"]
             if hash_counts[sample_hash] > 1:
-                # Duplicate detected - reduce trust
-                trust_scores[i] *= 0.8
+                # Progressive penalty for duplicates
+                penalty_factor = 0.9 ** (hash_counts[sample_hash] - 1)
+                trust_scores[i] *= penalty_factor
         
-        # Check data consistency
+        # Enhanced data consistency checking
         for i, record in enumerate(records):
             sample = data[i]
             summary = record["data_summary"]
             
-            # Check if current sample matches recorded summary
+            # Calculate multiple consistency metrics
             current_mean = np.mean(sample)
             current_std = np.std(sample)
+            current_median = np.median(sample)
             
             mean_diff = abs(current_mean - summary["mean"])
             std_diff = abs(current_std - summary["std"])
             
-            # Reduce trust if data has changed significantly
-            if mean_diff > 0.1 or std_diff > 0.1:
-                trust_scores[i] *= 0.9
+            # Adaptive consistency thresholds
+            mean_threshold = 0.05 + (0.05 * np.std(sample))  # Adaptive threshold
+            std_threshold = 0.05 + (0.05 * np.std(sample))
+            
+            # Calculate consistency score
+            consistency_score = 1.0
+            if mean_diff > mean_threshold:
+                consistency_score *= 0.95
+            if std_diff > std_threshold:
+                consistency_score *= 0.95
+            
+            # Apply weighted consistency score
+            trust_scores[i] *= (self._confidence_weight + 
+                               self._consistency_weight * consistency_score)
         
-        # Store consistency check results
+        # Apply hash verification if enabled
+        if self._hash_verification_enabled:
+            for i, record in enumerate(records):
+                # Verify hash integrity
+                expected_hash = self._hash_data(data[i])
+                if record["sample_hash"] != expected_hash:
+                    trust_scores[i] *= 0.7  # Significant penalty for hash mismatch
+        
+        # Store enhanced consistency check results
         self._consistency_checks.append({
             "timestamp": datetime.now().isoformat(),
             "n_samples": len(data),
             "n_duplicates": sum(1 for count in hash_counts.values() if count > 1),
-            "avg_trust": float(np.mean(trust_scores))
+            "avg_trust": float(np.mean(trust_scores)),
+            "consistency_score": float(np.mean(trust_scores)),
+            "hash_verification_enabled": self._hash_verification_enabled
         })
         
         return trust_scores

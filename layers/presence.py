@@ -46,8 +46,12 @@ class PresenceValidator(Validator):
         
         # Call parent constructor last
         super().__init__(name=name)
-        self.min_confidence = 0.5  # Aumentado para forçar mais confiança
-        self.entropy_penalty = 5.0  # Penalização mais agressiva
+        
+        # Enhanced configuration for better performance
+        self.min_confidence = 0.7  # Higher confidence threshold
+        self.entropy_penalty = 3.0  # Balanced entropy penalty
+        self.quantum_boost_factor = 1.3  # Quantum validation boost
+        self.adaptive_threshold = True  # Enable adaptive thresholds
     
     def validate(self, data: np.ndarray, labels: Optional[np.ndarray] = None) -> np.ndarray:
         """
@@ -128,18 +132,36 @@ class PresenceValidator(Validator):
     
     def _minimize_entropy(self, entropies: np.ndarray, data: np.ndarray) -> np.ndarray:
         """
-        Minimize entropy to produce trust scores.
+        Minimize entropy to produce trust scores with adaptive optimization.
         Args:
             entropies: Entropy values for each sample
             data: Input features
         Returns:
             Trust scores (higher = more confident)
         """
-        # Penalize entropy moderately
-        entropy_penalty = 3.0  # Moderate penalização (antes era 10.0)
+        # Adaptive entropy penalty based on data characteristics
+        mean_entropy = np.mean(entropies)
+        std_entropy = np.std(entropies)
+        
+        # Dynamic penalty adjustment
+        if mean_entropy > 2.0:
+            entropy_penalty = self.entropy_penalty * 1.5  # More aggressive for high entropy
+        elif mean_entropy < 0.5:
+            entropy_penalty = self.entropy_penalty * 0.7  # Less aggressive for low entropy
+        else:
+            entropy_penalty = self.entropy_penalty
+        
+        # Apply quantum-inspired entropy minimization
         trust_scores = np.exp(-entropy_penalty * entropies)
+        
+        # Apply quantum boost for high-confidence samples
+        high_confidence_mask = trust_scores > 0.8
+        trust_scores[high_confidence_mask] *= self.quantum_boost_factor
+        
         # Normalize to [0, 1]
+        trust_scores = np.clip(trust_scores, 0.0, 1.0)
         trust_scores = (trust_scores - np.min(trust_scores)) / (np.max(trust_scores) - np.min(trust_scores) + 1e-8)
+        
         return trust_scores
     
     def refine_predictions(self, pattern_predictions: np.ndarray, 

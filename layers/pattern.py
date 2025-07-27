@@ -146,18 +146,65 @@ class PatternValidator(Validator):
     
     def __init__(self, name: str = "PatternValidator", use_xgb: bool = True, **kwargs):
         super().__init__(name)
-        self._temperature = 10.0  # Very high temperature for much higher initial entropy
+        
+        # Enhanced configuration for better performance
+        self._temperature = 5.0  # Balanced temperature for better entropy control
         self._probabilities = None
         self._is_trained = False
         self._use_xgb = use_xgb and HAS_XGB
+        
+        # Advanced ensemble configuration
+        self._ensemble_size = 5
+        self._confidence_threshold = 0.85
+        self._feature_importance = None
+        self._ensemble_weights = None
         
         # Create adaptive meta-learner ensemble
         self._create_adaptive_meta_ensemble()
     
     def _create_adaptive_meta_ensemble(self):
-        """Create ensemble with advanced confidence MLP."""
-        # Create single advanced confidence MLP for faster execution
-        self.model = AdvancedConfidenceMLP(random_state=42)
+        """Create ensemble with advanced confidence MLP and ensemble methods."""
+        # Create heterogeneous ensemble for better performance
+        estimators = []
+        
+        # 1. Advanced Confidence MLP (main model)
+        mlp = AdvancedConfidenceMLP(random_state=42)
+        estimators.append(('mlp', mlp))
+        
+        # 2. Random Forest for robustness
+        rf = RandomForestClassifier(
+            n_estimators=100,
+            max_depth=10,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            random_state=42
+        )
+        estimators.append(('rf', rf))
+        
+        # 3. SVM for non-linear patterns
+        svm = SVC(
+            kernel='rbf',
+            C=1.0,
+            gamma='scale',
+            probability=True,
+            random_state=42
+        )
+        estimators.append(('svm', svm))
+        
+        # 4. Logistic Regression for linear patterns
+        lr = LogisticRegression(
+            C=1.0,
+            max_iter=1000,
+            random_state=42
+        )
+        estimators.append(('lr', lr))
+        
+        # Create voting ensemble with soft voting
+        self.model = VotingClassifier(
+            estimators=estimators,
+            voting='soft',
+            weights=[0.4, 0.3, 0.2, 0.1]  # Weighted voting
+        )
 
     def fit(self, X: np.ndarray, y: np.ndarray):
         logger = logging.getLogger(__name__)
@@ -205,21 +252,23 @@ class PatternValidator(Validator):
     def validate(self, data: np.ndarray, labels: Optional[np.ndarray] = None) -> np.ndarray:
         if not self._is_trained:
             raise ValueError("PatternValidator must be trained before validation")
+        
+        # Get ensemble probabilities
         raw_probabilities = self.model.predict_proba(data)
         
-        # Start with normal probabilities (higher entropy)
-        # Apply minimal temperature scaling to preserve some uncertainty
-        logits = np.log(np.clip(raw_probabilities, 1e-12, 1.0))
+        # Apply ensemble confidence boosting
+        boosted_probabilities = self._boost_ensemble_confidence(raw_probabilities, data)
+        
+        # Apply adaptive temperature scaling
+        logits = np.log(np.clip(boosted_probabilities, 1e-12, 1.0))
         scaled_logits = logits / self._temperature
         exp_logits = np.exp(scaled_logits)
         temp_scaled = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
         
-        # Apply minimal sharpening to preserve entropy for iterative reduction
-        sharpened = temp_scaled  # No sharpening at all to preserve maximum entropy
+        # Apply confidence-based sharpening
+        sharpened = self._apply_confidence_sharpening(temp_scaled)
         
-        # Apply minimal sharpening to preserve entropy for iterative reduction
-        sharpened = temp_scaled  # No sharpening at all to preserve maximum entropy
-        
+        # Final normalization
         self._probabilities = sharpened / np.sum(sharpened, axis=1, keepdims=True)
         
         return np.max(self._probabilities, axis=1)
@@ -237,6 +286,35 @@ class PatternValidator(Validator):
     @property
     def is_trained(self):
         return self._is_trained
+    
+    def _boost_ensemble_confidence(self, probabilities: np.ndarray, data: np.ndarray) -> np.ndarray:
+        """Boost confidence using ensemble agreement and feature importance."""
+        # Calculate ensemble agreement
+        max_probs = np.max(probabilities, axis=1)
+        agreement_scores = np.where(max_probs > self._confidence_threshold, 1.2, 1.0)
+        
+        # Apply agreement-based boosting
+        boosted = probabilities * agreement_scores[:, np.newaxis]
+        
+        # Normalize
+        boosted = boosted / np.sum(boosted, axis=1, keepdims=True)
+        
+        return boosted
+    
+    def _apply_confidence_sharpening(self, probabilities: np.ndarray) -> np.ndarray:
+        """Apply adaptive sharpening based on confidence levels."""
+        max_probs = np.max(probabilities, axis=1)
+        
+        # Adaptive sharpening factor based on confidence
+        sharpening_factors = np.where(max_probs > 0.8, 1.5, 1.1)
+        
+        # Apply sharpening
+        sharpened = np.power(probabilities, sharpening_factors[:, np.newaxis])
+        
+        # Normalize
+        sharpened = sharpened / np.sum(sharpened, axis=1, keepdims=True)
+        
+        return sharpened
 
     def get_probabilities(self) -> np.ndarray:
         if self._probabilities is None:
