@@ -33,6 +33,13 @@ from layers.logic import LogicValidator
 from loop.trust_loop import TrustUpdateLoop
 from config import setup_logging
 
+# Import advanced tracking components
+try:
+    from tracking import WeightTracker, ColumnHistory, RevaluationReason, FeatureAnalyzer
+    TRACKING_AVAILABLE = True
+except ImportError:
+    TRACKING_AVAILABLE = False
+
 # Page configuration
 st.set_page_config(
     page_title="SREE Dashboard",
@@ -861,6 +868,7 @@ class SREEDashboard:
             # No dataset uploaded - show basic options
             navigation_options = [
                 "📁 Upload Dataset",
+                "🚀 Run SREE Analysis",
                 "📊 System Overview",
                 "🏗️ Architecture",
                 "📈 Demo Results",
@@ -876,6 +884,7 @@ class SREEDashboard:
                 "🧠 SREE Analysis",
                 "📊 Results & Metrics",
                 "📈 Visualizations",
+                "🔍 Advanced Tracking",
                 "🖼️ Visualization Gallery",
                 "🛡️ Model Validation",
                 "📋 Export Results",
@@ -907,6 +916,9 @@ class SREEDashboard:
         if page == "📁 Upload Dataset" or page == "📁 Dataset Overview":
             self.create_csv_upload_section()
             
+        elif page == "🚀 Run SREE Analysis":
+            self.create_run_analysis_section()
+            
         elif page == "🔍 Data Analysis":
             self.create_data_analysis_section()
             
@@ -918,6 +930,9 @@ class SREEDashboard:
             
         elif page == "📈 Visualizations":
             self.create_visualizations_section()
+            
+        elif page == "🔍 Advanced Tracking":
+            self.create_advanced_tracking_section()
             
         elif page == "🖼️ Visualization Gallery":
             self.create_visualization_gallery()
@@ -1720,6 +1735,52 @@ class SREEDashboard:
                             with col4:
                                 st.metric("Avg Entropy", f"{summary['avg_entropy']:.3f}" if summary['avg_entropy'] else "N/A")
                             
+                            # Add entropy trend visualization
+                            if 'avg_entropy' in summary and summary['avg_entropy']:
+                                # Get entropy values for trend analysis
+                                entropy_values = []
+                                iteration_numbers = []
+                                
+                                for iter_data in block['iterations']:
+                                    if 'summary' in iter_data and 'avg_entropy' in iter_data['summary']:
+                                        entropy_values.append(iter_data['summary']['avg_entropy'])
+                                        iteration_numbers.append(iter_data['iteration'])
+                                
+                                if len(entropy_values) > 1:
+                                    # Create entropy trend chart
+                                    fig = go.Figure()
+                                    fig.add_trace(go.Scatter(
+                                        x=iteration_numbers,
+                                        y=entropy_values,
+                                        mode='lines+markers',
+                                        name='Entropy Trend',
+                                        line=dict(color='red', width=2),
+                                        marker=dict(size=8)
+                                    ))
+                                    
+                                    fig.update_layout(
+                                        title="📉 Entropy Reduction Trend",
+                                        xaxis_title="Iteration",
+                                        yaxis_title="Average Entropy",
+                                        height=300,
+                                        showlegend=False
+                                    )
+                                    
+                                    # Add trend analysis
+                                    first_entropy = entropy_values[0]
+                                    last_entropy = entropy_values[-1]
+                                    change = last_entropy - first_entropy
+                                    
+                                    if change < 0:
+                                        trend_text = f"✅ Entropy decreasing: {first_entropy:.6f} → {last_entropy:.6f} (change: {change:+.6f})"
+                                        trend_color = "green"
+                                    else:
+                                        trend_text = f"⚠️ Entropy stable: {first_entropy:.6f} → {last_entropy:.6f} (change: {change:+.6f})"
+                                        trend_color = "orange"
+                                    
+                                    st.markdown(f"<p style='color: {trend_color}; font-weight: bold;'>{trend_text}</p>", unsafe_allow_html=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"entropy_trend_iter_{iteration['iteration']}")
+                            
                             # Decision breakdown
                             col1, col2, col3 = st.columns(3)
                             with col1:
@@ -1773,6 +1834,85 @@ class SREEDashboard:
                                                 else:
                                                     st.write(f"• {feature['feature']}: {feature['value']}")
         
+        # Entropy Trend Analysis
+        st.subheader("📉 Entropy Trend Analysis")
+        
+        # Collect entropy data from all blocks
+        all_entropy_data = []
+        
+        for block in block_logs:
+            for iteration in block['iterations']:
+                if 'summary' in iteration and 'avg_entropy' in iteration['summary']:
+                    all_entropy_data.append({
+                        'block': block['block_id'],
+                        'iteration': iteration['iteration'],
+                        'entropy': iteration['summary']['avg_entropy']
+                    })
+        
+        if all_entropy_data:
+            # Create comprehensive entropy trend chart
+            df_entropy = pd.DataFrame(all_entropy_data)
+            
+            fig = go.Figure()
+            
+            # Plot entropy trend
+            fig.add_trace(go.Scatter(
+                x=df_entropy['iteration'],
+                y=df_entropy['entropy'],
+                mode='lines+markers',
+                name='Entropy',
+                line=dict(color='red', width=2),
+                marker=dict(size=6)
+            ))
+            
+            fig.update_layout(
+                title="📉 Overall Entropy Reduction Trend",
+                xaxis_title="Iteration",
+                yaxis_title="Average Entropy",
+                height=400,
+                showlegend=True
+            )
+            
+            # Add trend analysis
+            first_entropy = df_entropy['entropy'].iloc[0]
+            last_entropy = df_entropy['entropy'].iloc[-1]
+            total_change = last_entropy - first_entropy
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Initial Entropy", f"{first_entropy:.12f}")
+            
+            with col2:
+                st.metric("Final Entropy", f"{last_entropy:.12f}")
+            
+            with col3:
+                st.metric("Total Change", f"{total_change:+.12f}", 
+                         delta="✅ Decreasing" if total_change < 0 else "⚠️ Stable")
+            
+            st.plotly_chart(fig, use_container_width=True, key=f"entropy_trend_block_{block['block_id']}_iter_{iteration['iteration']}")
+            
+            # Entropy reduction explanation
+            if total_change < 0:
+                st.success("""
+                **✅ Entropy Reduction Confirmed!**
+                
+                The system is successfully reducing entropy across iterations, which means:
+                - **Less uncertainty** in predictions
+                - **More precise** results
+                - **Better confidence** in the model
+                - **Reduced noise** impact from outliers
+                """)
+            else:
+                st.warning("""
+                **⚠️ Entropy Analysis**
+                
+                The entropy remains stable, which could indicate:
+                - System has reached optimal precision
+                - Very low initial entropy (already precise)
+                - Consistent data quality
+                """)
+        
         # Download block logs
         st.subheader("📥 Download Block Logs")
         
@@ -1788,22 +1928,525 @@ class SREEDashboard:
                 help="Download detailed block-level diagnostics"
             )
     
+    def create_run_analysis_section(self):
+        """Creates the run SREE analysis section."""
+        st.header("🚀 Run SREE Analysis")
+        st.markdown("Execute SREE analysis directly from the dashboard.")
+        
+        # Instructions
+        with st.expander("📋 Instructions", expanded=True):
+            st.markdown("""
+            **How to run SREE analysis:**
+            1. **Choose a dataset** - Select from available datasets or upload your own
+            2. **Configure parameters** - Adjust analysis settings if needed
+            3. **Run analysis** - Click the button to start the analysis
+            4. **View results** - Results will be displayed automatically
+            
+            **Available datasets:**
+            - Heart Disease (UCI)
+            - Synthetic Credit Risk
+            - Custom uploaded dataset
+            """)
+        
+        # Dataset selection
+        st.subheader("📊 Dataset Selection")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            dataset_option = st.selectbox(
+                "Choose dataset:",
+                ["Heart Disease (UCI)", "Synthetic Credit Risk", "Custom Upload"],
+                help="Select the dataset to analyze"
+            )
+        
+        with col2:
+            if dataset_option == "Custom Upload":
+                if st.session_state.uploaded_df is None:
+                    st.warning("⚠️ Please upload a dataset first in the 'Upload Dataset' section.")
+                    return
+                else:
+                    st.success("✅ Custom dataset ready")
+                    selected_dataset = "custom"
+            else:
+                st.info(f"📊 {dataset_option} dataset selected")
+                selected_dataset = dataset_option.lower().replace(" ", "_").replace("(", "").replace(")", "")
+        
+        # Analysis parameters
+        st.subheader("⚙️ Analysis Parameters")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            max_iterations = st.slider(
+                "Max Iterations:",
+                min_value=5,
+                max_value=50,
+                value=20,
+                help="Maximum number of PPP iterations"
+            )
+        
+        with col2:
+            trust_threshold = st.slider(
+                "Trust Threshold:",
+                min_value=0.1,
+                max_value=0.9,
+                value=0.7,
+                step=0.1,
+                help="Minimum trust score threshold"
+            )
+        
+        with col3:
+            enable_tracking = st.checkbox(
+                "Enable Advanced Tracking",
+                value=True,
+                help="Enable comprehensive tracking and analysis"
+            )
+        
+        # Run analysis button
+        st.subheader("🚀 Execute Analysis")
+        
+        if st.button("🚀 Run SREE Analysis", type="primary", use_container_width=True):
+            with st.spinner("🔄 Running SREE analysis..."):
+                try:
+                    # Run the analysis
+                    results = self._execute_sree_analysis(
+                        dataset=selected_dataset,
+                        max_iterations=max_iterations,
+                        trust_threshold=trust_threshold,
+                        enable_tracking=enable_tracking
+                    )
+                    
+                    if results:
+                        st.success("✅ Analysis completed successfully!")
+                        
+                        # Store results in session state
+                        st.session_state.analysis_results = results
+                        
+                        # Show quick results
+                        st.subheader("📊 Quick Results")
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Final Accuracy", f"{results.get('final_accuracy', 0):.3f}")
+                        with col2:
+                            st.metric("Iterations", results.get('iterations', 0))
+                        with col3:
+                            st.metric("Trust Score", f"{results.get('final_trust_score', 0):.3f}")
+                        
+                        # Show next steps
+                        st.info("💡 **Next Steps:** Navigate to 'Results & Metrics' to view detailed analysis results.")
+                        
+                except Exception as e:
+                    st.error(f"❌ Analysis failed: {str(e)}")
+                    st.error("Please check the console for detailed error information.")
+    
+    def _execute_sree_analysis(self, dataset: str, max_iterations: int, trust_threshold: float, enable_tracking: bool) -> dict:
+        """Execute SREE analysis with given parameters."""
+        try:
+            # Import required modules
+            from data_loader import DataLoader
+            from loop.trust_loop import TrustUpdateLoop
+            from layers.pattern import PatternValidator
+            from layers.presence import PresenceValidator
+            from layers.permanence import PermanenceValidator
+            from layers.logic import LogicValidator
+            
+            # Load dataset
+            data_loader = DataLoader()
+            
+            if dataset == "custom":
+                # Use uploaded dataset
+                df = st.session_state.uploaded_df
+                # Assume last column is target
+                X = df.iloc[:, :-1].values
+                y = df.iloc[:, -1].values
+            elif dataset == "heart_disease_(uci)":
+                X, y = data_loader.load_heart()
+            elif dataset == "synthetic_credit_risk":
+                X, y = data_loader.load_synthetic_credit_risk()
+            else:
+                # Default to heart disease
+                X, y = data_loader.load_heart()
+            
+            # Initialize validators
+            pattern_validator = PatternValidator()
+            presence_validator = PresenceValidator()
+            permanence_validator = PermanenceValidator()
+            logic_validator = LogicValidator()
+            
+            # Initialize trust loop
+            trust_loop = TrustUpdateLoop(
+                pattern_validator=pattern_validator,
+                presence_validator=presence_validator,
+                permanence_validator=permanence_validator,
+                logic_validator=logic_validator,
+                max_iterations=max_iterations,
+                trust_threshold=trust_threshold
+            )
+            
+            # Initialize tracking if enabled
+            if enable_tracking:
+                trust_loop.initialize_tracking([f"feature_{i}" for i in range(X.shape[1])])
+            
+            # Split data into train and test sets
+            from sklearn.model_selection import train_test_split
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.3, random_state=42, stratify=y
+            )
+            
+            # Run PPP loop
+            results = trust_loop.run_ppp_loop(X_train, y_train, X_test, y_test)
+            
+            return results
+            
+        except Exception as e:
+            st.error(f"Error in SREE analysis: {str(e)}")
+            return None
+
+    def create_advanced_tracking_section(self):
+        """Create advanced tracking section."""
+        if not TRACKING_AVAILABLE:
+            st.header("🔍 Advanced Tracking System")
+            st.warning("Advanced tracking system not available. Please install required dependencies.")
+            return
+        
+        st.header("🔍 Advanced Tracking System")
+        st.write("Comprehensive tracking of weight changes, column revaluations, and feature analysis.")
+        
+        # Load tracking logs
+        tracking_logs = self.load_tracking_logs()
+        
+        if not tracking_logs:
+            st.warning("No tracking logs found. Run SREE analysis with advanced tracking enabled first.")
+            return
+        
+        # Create tabs for different tracking components
+        tab1, tab2, tab3, tab4 = st.tabs(["📊 Weight Tracking", "📋 Column History", "🔍 Feature Analysis", "📈 Visualizations"])
+        
+        with tab1:
+            self._display_weight_tracking(tracking_logs)
+        
+        with tab2:
+            self._display_column_history(tracking_logs)
+        
+        with tab3:
+            self._display_feature_analysis(tracking_logs)
+        
+        with tab4:
+            self._display_tracking_visualizations(tracking_logs)
+    
+    def _display_weight_tracking(self, tracking_logs):
+        """Display weight tracking information."""
+        st.subheader("📊 Weight Change Tracking")
+        
+        if "weight_logs" not in tracking_logs:
+            st.info("No weight tracking data available.")
+            return
+        
+        # Load weight tracking data
+        try:
+            with open(tracking_logs["weight_logs"], 'r') as f:
+                weight_data = json.load(f)
+            
+            # Display summary
+            if "feature_insights" in weight_data:
+                st.write("**Feature Weight Insights:**")
+                
+                # Create DataFrame for feature insights
+                insights_data = []
+                for feature_name, insights in weight_data["feature_insights"].items():
+                    insights_data.append({
+                        'Feature': feature_name,
+                        'Current Weight': f"{insights.get('current_weight', 0):.4f}",
+                        'Stability Score': f"{insights.get('stability_score', 0):.3f}",
+                        'Trend': insights.get('trend', 'unknown'),
+                        'Total Change': f"{insights.get('total_change', 0):.4f}",
+                        'Change %': f"{insights.get('change_percentage', 0):.1f}%"
+                    })
+                
+                df_insights = pd.DataFrame(insights_data)
+                st.dataframe(df_insights, use_container_width=True)
+                
+                # Display stability scores
+                st.subheader("🎯 Feature Stability Scores")
+                stability_data = []
+                for feature_name, insights in weight_data["feature_insights"].items():
+                    stability_data.append({
+                        'Feature': feature_name,
+                        'Stability Score': insights.get('stability_score', 0)
+                    })
+                
+                df_stability = pd.DataFrame(stability_data)
+                fig = px.bar(df_stability, x='Feature', y='Stability Score', 
+                           title="Feature Stability Scores",
+                           color='Stability Score',
+                           color_continuous_scale='RdYlGn')
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Display anomalies
+            if "anomaly_detection" in weight_data:
+                st.subheader("⚠️ Weight Anomalies")
+                anomalies = weight_data["anomaly_detection"]
+                
+                if anomalies:
+                    for feature_name, feature_anomalies in anomalies.items():
+                        with st.expander(f"Anomalies for {feature_name}"):
+                            for anomaly in feature_anomalies:
+                                st.write(f"**Type:** {anomaly['type']}")
+                                st.write(f"**Description:** {anomaly['description']}")
+                                if 'iteration' in anomaly:
+                                    st.write(f"**Iteration:** {anomaly['iteration']}")
+                                st.write("---")
+                else:
+                    st.success("No weight anomalies detected.")
+                    
+        except Exception as e:
+            st.error(f"Error loading weight tracking data: {str(e)}")
+    
+    def _display_column_history(self, tracking_logs):
+        """Display column revaluation history."""
+        st.subheader("📋 Column Revaluation History")
+        
+        if "column_logs" not in tracking_logs:
+            st.info("No column history data available.")
+            return
+        
+        # Load column history data
+        try:
+            with open(tracking_logs["column_logs"], 'r') as f:
+                column_data = json.load(f)
+            
+            # Display summary
+            if "column_insights" in column_data:
+                st.write("**Column Confidence Scores:**")
+                
+                # Create DataFrame for column insights
+                insights_data = []
+                for column_name, insights in column_data["column_insights"].items():
+                    insights_data.append({
+                        'Column': column_name,
+                        'Confidence Score': f"{insights.get('confidence_score', 0):.3f}",
+                        'Total Revaluations': insights.get('total_revaluations', 0),
+                        'Reliability Rating': insights.get('reliability_rating', 'unknown'),
+                        'Most Common Reason': insights.get('most_common_reason', 'none')
+                    })
+                
+                df_insights = pd.DataFrame(insights_data)
+                st.dataframe(df_insights, use_container_width=True)
+                
+                # Display confidence scores
+                st.subheader("🎯 Column Confidence Scores")
+                confidence_data = []
+                for column_name, insights in column_data["column_insights"].items():
+                    confidence_data.append({
+                        'Column': column_name,
+                        'Confidence Score': insights.get('confidence_score', 0)
+                    })
+                
+                df_confidence = pd.DataFrame(confidence_data)
+                fig = px.bar(df_confidence, x='Column', y='Confidence Score', 
+                           title="Column Confidence Scores",
+                           color='Confidence Score',
+                           color_continuous_scale='RdYlGn')
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Display revaluation history
+            if "revaluation_history" in column_data:
+                st.subheader("📈 Revaluation Timeline")
+                revaluation_data = []
+                
+                for column_name, history in column_data["revaluation_history"].items():
+                    for record in history:
+                        revaluation_data.append({
+                            'Column': column_name,
+                            'Reason': record.get('reason', 'unknown'),
+                            'Iteration': record.get('iteration', 0),
+                            'Timestamp': record.get('timestamp', ''),
+                            'Trust Impact': record.get('trust_impact', 0)
+                        })
+                
+                if revaluation_data:
+                    df_revaluations = pd.DataFrame(revaluation_data)
+                    fig = px.scatter(df_revaluations, x='Iteration', y='Trust Impact', 
+                                   color='Column', title="Revaluation Timeline",
+                                   hover_data=['Reason', 'Timestamp'])
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.success("No revaluations recorded.")
+                    
+        except Exception as e:
+            st.error(f"Error loading column history data: {str(e)}")
+    
+    def _display_feature_analysis(self, tracking_logs):
+        """Display feature analysis results."""
+        st.subheader("🔍 Enhanced Feature Analysis")
+        
+        if "feature_logs" not in tracking_logs:
+            st.info("No feature analysis data available.")
+            return
+        
+        # Load feature analysis data
+        try:
+            with open(tracking_logs["feature_logs"], 'r') as f:
+                feature_data = json.load(f)
+            
+            # Display summary
+            if "feature_analyses" in feature_data:
+                st.write("**Feature Quality Analysis:**")
+                
+                # Create DataFrame for feature quality
+                quality_data = []
+                for feature_name, analysis in feature_data["feature_analyses"].items():
+                    quality_analysis = analysis.get("quality_analysis", {})
+                    quality_data.append({
+                        'Feature': feature_name,
+                        'Quality Score': quality_analysis.get('quality_score', 0),
+                        'Missing %': f"{quality_analysis.get('missing_percentage', 0):.2f}%",
+                        'Outlier %': f"{quality_analysis.get('outlier_percentage', 0):.2f}%",
+                        'Is Constant': "Yes" if quality_analysis.get('is_constant', False) else "No"
+                    })
+                
+                df_quality = pd.DataFrame(quality_data)
+                st.dataframe(df_quality, use_container_width=True)
+                
+                # Display quality scores
+                st.subheader("🎯 Feature Quality Scores")
+                quality_scores = []
+                for feature_name, analysis in feature_data["feature_analyses"].items():
+                    quality_analysis = analysis.get("quality_analysis", {})
+                    quality_scores.append({
+                        'Feature': feature_name,
+                        'Quality Score': quality_analysis.get('quality_score', 0)
+                    })
+                
+                df_scores = pd.DataFrame(quality_scores)
+                fig = px.bar(df_scores, x='Feature', y='Quality Score', 
+                           title="Feature Quality Scores",
+                           color='Quality Score',
+                           color_continuous_scale='RdYlGn')
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Display importance rankings
+            if "importance_rankings" in feature_data:
+                st.subheader("🏆 Feature Importance Rankings")
+                rankings = feature_data["importance_rankings"]
+                
+                if "correlation_ranking" in rankings:
+                    st.write("**By Correlation:**")
+                    corr_data = []
+                    for feature, score in rankings["correlation_ranking"][:10]:  # Top 10
+                        corr_data.append({
+                            'Feature': feature,
+                            'Correlation': score
+                        })
+                    
+                    df_corr = pd.DataFrame(corr_data)
+                    fig = px.bar(df_corr, x='Feature', y='Correlation', 
+                               title="Top 10 Features by Correlation",
+                               color='Correlation',
+                               color_continuous_scale='Blues')
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+        except Exception as e:
+            st.error(f"Error loading feature analysis data: {str(e)}")
+    
+    def _display_tracking_visualizations(self, tracking_logs):
+        """Display tracking visualizations."""
+        st.subheader("📈 Tracking Visualizations")
+        
+        # Display weight tracking visualization
+        if "weight_visualization" in tracking_logs and tracking_logs["weight_visualization"]:
+            st.write("**Weight Evolution Visualization:**")
+            try:
+                st.image(tracking_logs["weight_visualization"], caption="Feature Weight Evolution", use_container_width=True)
+            except Exception as e:
+                st.error(f"Error loading weight visualization: {str(e)}")
+        
+        # Display feature analysis visualization
+        if "feature_visualization" in tracking_logs and tracking_logs["feature_visualization"]:
+            st.write("**Feature Analysis Visualization:**")
+            try:
+                st.image(tracking_logs["feature_visualization"], caption="Feature Analysis Overview", use_container_width=True)
+            except Exception as e:
+                st.error(f"Error loading feature visualization: {str(e)}")
+        
+        # Display column history visualization
+        if "column_visualization" in tracking_logs and tracking_logs["column_visualization"]:
+            st.write("**Column History Visualization:**")
+            try:
+                st.image(tracking_logs["column_visualization"], caption="Column Revaluation History", use_container_width=True)
+            except Exception as e:
+                st.error(f"Error loading column visualization: {str(e)}")
+    
+    def load_tracking_logs(self) -> Dict[str, str]:
+        """Load tracking logs from the logs directory."""
+        tracking_logs = {}
+        
+        # Look for tracking log files
+        for file in self.logs_dir.glob("*"):
+            if file.is_file():
+                if "weight_tracking_logs" in file.name:
+                    tracking_logs["weight_logs"] = str(file)
+                elif "column_history_logs" in file.name:
+                    tracking_logs["column_logs"] = str(file)
+                elif "feature_analysis_logs" in file.name:
+                    tracking_logs["feature_logs"] = str(file)
+                elif "weight_tracking_" in file.name and file.suffix == ".png":
+                    tracking_logs["weight_visualization"] = str(file)
+                elif "column_history_" in file.name and file.suffix == ".png":
+                    tracking_logs["column_visualization"] = str(file)
+                elif "feature_analysis_" in file.name and file.suffix == ".png":
+                    tracking_logs["feature_visualization"] = str(file)
+        
+        return tracking_logs
+    
     def load_block_logs(self) -> List[Dict]:
         """Load block logs from the logs directory."""
         block_logs = []
         
-        # Look for per_block_logs files
+        # Look for per_block_logs files and get the most recent one
+        block_log_files = []
         for file in os.listdir('logs'):
             if file.startswith('per_block_logs_') and file.endswith('.json'):
+                file_path = os.path.join('logs', file)
+                # Skip corrupted or very small files
+                if os.path.getsize(file_path) > 1000:  # Skip files smaller than 1KB
+                    block_log_files.append((file_path, os.path.getmtime(file_path)))
+        
+        if not block_log_files:
+            st.warning("No valid block log files found.")
+            return block_logs
+        
+        # Sort by modification time and get the most recent
+        block_log_files.sort(key=lambda x: x[1], reverse=True)
+        most_recent_file = block_log_files[0][0]
+        
+        try:
+            with open(most_recent_file, 'r') as f:
+                logs = json.load(f)
+                if isinstance(logs, list):
+                    block_logs.extend(logs)
+                else:
+                    block_logs.append(logs)
+            st.success(f"✅ Loaded block logs from: {os.path.basename(most_recent_file)}")
+        except json.JSONDecodeError as e:
+            st.error(f"❌ JSON parsing error in {os.path.basename(most_recent_file)}: {str(e)}")
+            # Try to load a backup file if available
+            if len(block_log_files) > 1:
+                backup_file = block_log_files[1][0]
                 try:
-                    with open(os.path.join('logs', file), 'r') as f:
+                    with open(backup_file, 'r') as f:
                         logs = json.load(f)
                         if isinstance(logs, list):
                             block_logs.extend(logs)
                         else:
                             block_logs.append(logs)
-                except Exception as e:
-                    st.error(f"Error loading block logs from {file}: {str(e)}")
+                    st.success(f"✅ Loaded backup block logs from: {os.path.basename(backup_file)}")
+                except Exception as e2:
+                    st.error(f"❌ Backup file also failed: {str(e2)}")
+        except Exception as e:
+            st.error(f"❌ Error loading block logs from {os.path.basename(most_recent_file)}: {str(e)}")
         
         return block_logs
 

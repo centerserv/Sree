@@ -134,6 +134,51 @@ class DataLoader:
             self.logger.info("Falling back to synthetic dataset...")
             return self.create_synthetic(config.get("n_samples", 1000))
     
+    def load_synthetic_credit_risk(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Load synthetic credit risk dataset.
+        
+        Returns:
+            Tuple of (X, y) where X is features and y is labels
+        """
+        self.logger.info("Loading synthetic credit risk dataset")
+        
+        try:
+            # Load from CSV file
+            csv_path = Path(DATA_DIR) / "synthetic_credit_risk.csv"
+            
+            if not csv_path.exists():
+                self.logger.warning(f"Synthetic credit risk CSV not found at {csv_path}")
+                self.logger.info("Falling back to synthetic dataset...")
+                return self.create_synthetic(1000)
+            
+            # Load CSV
+            df = pd.read_csv(csv_path)
+            
+            # Separate features and target
+            # Assume last column is target
+            X = df.iloc[:, :-1].values
+            y = df.iloc[:, -1].values
+            
+            # Limit samples to reasonable size for testing
+            n_samples = min(1000, len(X))
+            if n_samples < len(X):
+                indices = np.random.choice(
+                    len(X), 
+                    n_samples, 
+                    replace=False
+                )
+                X = X[indices]
+                y = y[indices]
+            
+            self.logger.info(f"Synthetic credit risk loaded successfully: X.shape={X.shape}, y.shape={y.shape}")
+            return X, y
+            
+        except Exception as e:
+            self.logger.error(f"Failed to load synthetic credit risk dataset: {e}")
+            self.logger.info("Falling back to synthetic dataset...")
+            return self.create_synthetic(1000)
+    
     def load_cifar10(self, n_samples: int = None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Load CIFAR-10 dataset for robust validation.

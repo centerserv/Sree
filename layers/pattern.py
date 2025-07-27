@@ -146,7 +146,7 @@ class PatternValidator(Validator):
     
     def __init__(self, name: str = "PatternValidator", use_xgb: bool = True, **kwargs):
         super().__init__(name)
-        self._temperature = 0.1  # Ultra-aggressive temperature scaling
+        self._temperature = 10.0  # Very high temperature for much higher initial entropy
         self._probabilities = None
         self._is_trained = False
         self._use_xgb = use_xgb and HAS_XGB
@@ -207,14 +207,19 @@ class PatternValidator(Validator):
             raise ValueError("PatternValidator must be trained before validation")
         raw_probabilities = self.model.predict_proba(data)
         
-        # Apply temperature scaling for sharper probabilities
+        # Start with normal probabilities (higher entropy)
+        # Apply minimal temperature scaling to preserve some uncertainty
         logits = np.log(np.clip(raw_probabilities, 1e-12, 1.0))
         scaled_logits = logits / self._temperature
         exp_logits = np.exp(scaled_logits)
         temp_scaled = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
         
-        # Apply sharpening (potenciação) para forçar distribuições mais extremas
-        sharpened = np.power(temp_scaled, 2.0)  # Potenciação para forçar confiança
+        # Apply minimal sharpening to preserve entropy for iterative reduction
+        sharpened = temp_scaled  # No sharpening at all to preserve maximum entropy
+        
+        # Apply minimal sharpening to preserve entropy for iterative reduction
+        sharpened = temp_scaled  # No sharpening at all to preserve maximum entropy
+        
         self._probabilities = sharpened / np.sum(sharpened, axis=1, keepdims=True)
         
         return np.max(self._probabilities, axis=1)

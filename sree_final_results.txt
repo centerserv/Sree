@@ -1,7 +1,7 @@
 ================================================================================
 SREE PHASE 1 FINAL RESULTS - CLIENT REPORT
 ================================================================================
-Generated: 2025-07-26 18:19:34
+Generated: 2025-07-27 21:19:18
 Dataset: heart
 Tests Run: 5
 Outliers Handled: 569
@@ -10,7 +10,7 @@ FINAL PERFORMANCE SUMMARY:
 ----------------------------------------
 Accuracy: 0.9737 ± 0.0124
 Trust Score: 0.9704 ± 0.0012
-Block Count: 3.0 ± 0.0
+Block Count: 11.0 ± 0.0
 Entropy: 3.6026 ± 0.0201
 Cross-Validation: nan ± nan
 
@@ -346,11 +346,11 @@ Data Quality Insights:
 
 INDIVIDUAL TEST RESULTS:
 ----------------------------------------
-Test 1: Acc=0.9561, Trust=0.9712, Blocks=3, Entropy=3.5757
-Test 2: Acc=0.9825, Trust=0.9705, Blocks=3, Entropy=3.6266
-Test 3: Acc=0.9912, Trust=0.9698, Blocks=3, Entropy=3.6234
-Test 4: Acc=0.9737, Trust=0.9684, Blocks=3, Entropy=3.5854
-Test 5: Acc=0.9649, Trust=0.9719, Blocks=3, Entropy=3.6020
+Test 1: Acc=0.9561, Trust=0.9712, Blocks=11, Entropy=3.5757
+Test 2: Acc=0.9825, Trust=0.9705, Blocks=11, Entropy=3.6266
+Test 3: Acc=0.9912, Trust=0.9698, Blocks=11, Entropy=3.6234
+Test 4: Acc=0.9737, Trust=0.9684, Blocks=11, Entropy=3.5854
+Test 5: Acc=0.9649, Trust=0.9719, Blocks=11, Entropy=3.6020
 
 ================================================================================
 SYSTEM ARCHITECTURE NOTE FOR GROK
