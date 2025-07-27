@@ -215,19 +215,34 @@ class PatternValidator(Validator):
         )
         estimators.append(('lr', lr))
         
-        # Create voting ensemble with soft voting
-        self.model = VotingClassifier(
-            estimators=estimators,
-            voting='soft',
-            weights=[0.4, 0.3, 0.2, 0.1]  # Weighted voting
+        # Create advanced stacking ensemble for better performance
+        from sklearn.ensemble import StackingClassifier
+        from sklearn.linear_model import RidgeClassifier
+        
+        # Base estimators
+        base_estimators = estimators
+        
+        # Meta-learner (Ridge Classifier for better generalization)
+        meta_learner = RidgeClassifier(alpha=1.0, random_state=42)
+        
+        # Create stacking ensemble
+        self.model = StackingClassifier(
+            estimators=base_estimators,
+            final_estimator=meta_learner,
+            cv=5,  # 5-fold cross-validation
+            stack_method='predict_proba',
+            n_jobs=-1  # Use all CPU cores
         )
 
     def fit(self, X: np.ndarray, y: np.ndarray):
         logger = logging.getLogger(__name__)
-        logger.info("Training PatternValidator with robust ensemble...")
+        logger.info("Training PatternValidator with advanced AI techniques...")
         
-        # Train the ensemble model
-        self.model.fit(X, y)
+        # Apply advanced feature engineering
+        X_enhanced = self._apply_feature_engineering(X, y)
+        
+        # Train the ensemble model with enhanced features
+        self.model.fit(X_enhanced, y)
         self._is_trained = True
         
         # Store feature names if available
@@ -278,8 +293,11 @@ class PatternValidator(Validator):
         if not self._is_trained:
             raise ValueError("PatternValidator must be trained before validation")
         
+        # Apply feature engineering to test data
+        data_enhanced = self._apply_feature_engineering(data, labels)
+        
         # Get ensemble probabilities
-        raw_probabilities = self.model.predict_proba(data)
+        raw_probabilities = self.model.predict_proba(data_enhanced)
         
         # Apply ensemble confidence boosting
         boosted_probabilities = self._boost_ensemble_confidence(raw_probabilities, data)
@@ -340,7 +358,93 @@ class PatternValidator(Validator):
         sharpened = sharpened / np.sum(sharpened, axis=1, keepdims=True)
         
         return sharpened
-
+    
+    def _apply_feature_engineering(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+        """Apply advanced feature engineering techniques."""
+        from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+        from sklearn.decomposition import PCA
+        import numpy as np
+        
+        # 1. Polynomial features (degree 2)
+        poly = PolynomialFeatures(degree=2, include_bias=False, interaction_only=True)
+        X_poly = poly.fit_transform(X)
+        
+        # 2. Statistical features
+        X_stats = self._create_statistical_features(X)
+        
+        # 3. Interaction features
+        X_interactions = self._create_interaction_features(X)
+        
+        # 4. PCA features (reduce dimensionality while preserving variance)
+        pca = PCA(n_components=min(10, X.shape[1]), random_state=42)
+        X_pca = pca.fit_transform(X)
+        
+        # 5. Combine all features
+        X_enhanced = np.hstack([
+            X,  # Original features
+            X_poly[:, X.shape[1]:],  # Polynomial features (excluding original)
+            X_stats,  # Statistical features
+            X_interactions,  # Interaction features
+            X_pca  # PCA features
+        ])
+        
+        # 6. Standardize features
+        scaler = StandardScaler()
+        X_enhanced = scaler.fit_transform(X_enhanced)
+        
+        return X_enhanced
+    
+    def _create_statistical_features(self, X: np.ndarray) -> np.ndarray:
+        """Create statistical features."""
+        features = []
+        
+        # Mean, std, min, max for each sample
+        features.append(np.mean(X, axis=1, keepdims=True))
+        features.append(np.std(X, axis=1, keepdims=True))
+        features.append(np.min(X, axis=1, keepdims=True))
+        features.append(np.max(X, axis=1, keepdims=True))
+        features.append(np.median(X, axis=1, keepdims=True))
+        
+        # Percentiles
+        features.append(np.percentile(X, 25, axis=1, keepdims=True))
+        features.append(np.percentile(X, 75, axis=1, keepdims=True))
+        
+        # Skewness and kurtosis (approximated)
+        mean = np.mean(X, axis=1, keepdims=True)
+        std = np.std(X, axis=1, keepdims=True)
+        skewness = np.mean(((X - mean) / (std + 1e-8)) ** 3, axis=1, keepdims=True)
+        kurtosis = np.mean(((X - mean) / (std + 1e-8)) ** 4, axis=1, keepdims=True)
+        features.append(skewness)
+        features.append(kurtosis)
+        
+        return np.hstack(features)
+    
+    def _create_interaction_features(self, X: np.ndarray) -> np.ndarray:
+        """Create interaction features between important features."""
+        features = []
+        
+        # For Heart Disease dataset (13 features), create meaningful interactions
+        if X.shape[1] >= 13:
+            # Age interactions
+            features.append((X[:, 0] * X[:, 1]).reshape(-1, 1))  # Age * Sex
+            features.append((X[:, 0] * X[:, 2]).reshape(-1, 1))  # Age * Chest Pain
+            
+            # Blood pressure interactions
+            features.append((X[:, 3] * X[:, 4]).reshape(-1, 1))  # BP * Cholesterol
+            
+            # ECG interactions
+            features.append((X[:, 6] * X[:, 7]).reshape(-1, 1))  # ECG * Max HR
+            
+            # Exercise interactions
+            features.append((X[:, 8] * X[:, 9]).reshape(-1, 1))  # Exercise * ST Depression
+        else:
+            # Generic interactions for other datasets
+            for i in range(min(5, X.shape[1])):
+                for j in range(i+1, min(6, X.shape[1])):
+                    features.append((X[:, i] * X[:, j]).reshape(-1, 1))
+        
+        return np.hstack(features) if features else np.zeros((X.shape[0], 1))
+    
     def get_probabilities(self) -> np.ndarray:
         if self._probabilities is None:
             raise ValueError("No probabilities computed yet. Call validate() first.")
