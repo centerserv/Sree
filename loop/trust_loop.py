@@ -17,6 +17,142 @@ from layers.logic import LogicValidator
 from config import PPP_CONFIG, LOGS_DIR
 
 
+class BlockLogger:
+    """
+    Block-level logging system for detailed diagnostics per block.
+    
+    This class provides comprehensive logging of row-level diagnostics for each block,
+    including V_q, V_b, V_l scores, decision outcomes, and logic rule failures.
+    """
+    
+    def __init__(self, logs_dir: Path = None):
+        """
+        Initialize Block Logger.
+        
+        Args:
+            logs_dir: Directory to store log files
+        """
+        self.logs_dir = logs_dir or LOGS_DIR
+        self.logs_dir.mkdir(exist_ok=True)
+        self.block_logs = []
+        self.current_block = 0
+        
+    def log_block_start(self, block_id: int, X_block: np.ndarray, y_block: np.ndarray):
+        """Log the start of a new block processing."""
+        self.current_block = block_id
+        block_log = {
+            "block_id": block_id,
+            "timestamp": datetime.now().isoformat(),
+            "n_samples": len(X_block),
+            "n_features": X_block.shape[1] if len(X_block.shape) > 1 else 1,
+            "class_distribution": self._get_class_distribution(y_block),
+            "iterations": [],
+            "final_results": {}
+        }
+        self.block_logs.append(block_log)
+        
+    def log_iteration(self, iteration: int, v_q: np.ndarray, v_b: np.ndarray, v_l: np.ndarray,
+                     decisions: List[str], logic_failures: List[Dict], entropy_scores: np.ndarray = None):
+        """
+        Log detailed information for each iteration within a block.
+        
+        Args:
+            iteration: Current iteration number
+            v_q: Pattern validation scores
+            v_b: Presence validation scores  
+            v_l: Logic validation scores
+            decisions: List of decisions for each row (down-weighted, retained, flagged)
+            logic_failures: List of logic rule failures with feature details
+            entropy_scores: Entropy scores for outlier detection
+        """
+        if not self.block_logs:
+            return
+            
+        iteration_log = {
+            "iteration": iteration,
+            "timestamp": datetime.now().isoformat(),
+            "row_diagnostics": [],
+            "summary": {
+                "avg_v_q": float(np.mean(v_q)),
+                "avg_v_b": float(np.mean(v_b)),
+                "avg_v_l": float(np.mean(v_l)),
+                "n_down_weighted": decisions.count("down-weighted"),
+                "n_retained": decisions.count("retained"),
+                "n_flagged": decisions.count("flagged"),
+                "n_logic_failures": len(logic_failures),
+                "avg_entropy": float(np.mean(entropy_scores)) if entropy_scores is not None else None
+            }
+        }
+        
+        # Log row-level diagnostics
+        for i in range(len(v_q)):
+            row_diagnostic = {
+                "row_id": i,
+                "v_q_score": float(v_q[i]),
+                "v_b_score": float(v_b[i]),
+                "v_l_score": float(v_l[i]),
+                "decision": decisions[i] if i < len(decisions) else "unknown",
+                "entropy": float(entropy_scores[i]) if entropy_scores is not None else None,
+                "is_outlier": entropy_scores[i] > 2.0 if entropy_scores is not None else False
+            }
+            iteration_log["row_diagnostics"].append(row_diagnostic)
+        
+        # Log logic failures with feature details
+        iteration_log["logic_failures"] = logic_failures
+        
+        self.block_logs[-1]["iterations"].append(iteration_log)
+        
+    def log_block_end(self, final_trust: np.ndarray, final_accuracy: float, 
+                     convergence_achieved: bool, block_count: int):
+        """Log the end of block processing with final results."""
+        if not self.block_logs:
+            return
+            
+        self.block_logs[-1]["final_results"] = {
+            "final_trust_scores": final_trust.tolist(),
+            "final_accuracy": final_accuracy,
+            "convergence_achieved": convergence_achieved,
+            "block_count": block_count,
+            "avg_final_trust": float(np.mean(final_trust)),
+            "min_final_trust": float(np.min(final_trust)),
+            "max_final_trust": float(np.max(final_trust))
+        }
+        
+    def save_block_logs(self, filename: str = None) -> str:
+        """Save all block logs to a JSON file."""
+        if filename is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"per_block_logs_{timestamp}.json"
+            
+        filepath = self.logs_dir / filename
+        
+        # Convert numpy arrays to lists for JSON serialization
+        def convert_numpy_types(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, dict):
+                return {k: convert_numpy_types(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_numpy_types(item) for item in obj]
+            return obj
+        
+        serializable_logs = convert_numpy_types(self.block_logs)
+        
+        with open(filepath, 'w') as f:
+            json.dump(serializable_logs, f, indent=2)
+            
+        return str(filepath)
+        
+    def _get_class_distribution(self, y: np.ndarray) -> Dict[str, int]:
+        """Get class distribution for logging."""
+        unique, counts = np.unique(y, return_counts=True)
+        return {f"class_{int(u)}": int(c) for u, c in zip(unique, counts)}
+
+
 class TrustUpdateLoop:
     """
     Trust Update Loop - Recursive trust update mechanism for PPP convergence.
@@ -100,6 +236,9 @@ class TrustUpdateLoop:
         # Store configuration
         self._config = loop_config
         
+        # Initialize block logger for detailed diagnostics
+        self._block_logger = BlockLogger()
+        
         # Call parent constructor last
         super().__init__()
     
@@ -119,6 +258,9 @@ class TrustUpdateLoop:
         """
         logger = logging.getLogger(__name__)
         logger.info(f"Starting PPP loop with {self._iterations} iterations")
+        
+        # Initialize block logging
+        self._block_logger.log_block_start(block_id=1, X_block=X_test, y_block=y_test)
         
         # Train Pattern validator if available
         if self._pattern_validator is not None:
@@ -179,16 +321,37 @@ class TrustUpdateLoop:
                 v_b = np.ones(len(y_test)) * 0.5
             
             # Step 4: Logic Layer (symbolic validation)
+            logic_failures = []
             if self._logic_validator is not None:
                 # Calculate symbolic validation V_l
                 v_l = self._logic_validator.calculate_symbolic_validation(refined_predictions, X_test)
                 logic_trust = self._logic_validator.validate(X_test, y_test)
+                
+                # Detect logic rule failures
+                logic_failures = self._detect_logic_failures(X_test, refined_predictions, v_l)
             else:
                 logic_trust = np.ones(len(y_test)) * 0.5
                 v_l = np.ones(len(y_test)) * 0.5
             
-            # Step 5: Apply recursive trust update formulas
+            # Step 5: Calculate entropy scores for outlier detection
+            entropy_scores = self._calculate_entropy_scores(refined_probabilities)
+            
+            # Step 6: Make decisions based on scores and entropy
+            decisions = self._make_row_decisions(v_q, v_b, v_l, entropy_scores)
+            
+            # Step 7: Apply recursive trust update formulas
             updated_trust, updated_state = self._apply_recursive_trust_formulas(v_q, v_b, v_l)
+            
+            # Step 8: Log detailed iteration information
+            self._block_logger.log_iteration(
+                iteration=iteration,
+                v_q=v_q,
+                v_b=v_b,
+                v_l=v_l,
+                decisions=decisions,
+                logic_failures=logic_failures,
+                entropy_scores=entropy_scores
+            )
             
             # Step 6: Calculate accuracy
             # Ensure predictions and y_test are properly formatted
@@ -259,6 +422,19 @@ class TrustUpdateLoop:
                 results["convergence_achieved"] = True
                 results["convergence_iteration"] = iteration + 1
                 break
+        
+        # Log block end with final results
+        final_accuracy = results.get("final_accuracy", 0.0)
+        final_trust = results.get("final_trust", 0.0)
+        convergence_achieved = results.get("convergence_achieved", False)
+        block_count = 1  # Single block for now
+        
+        self._block_logger.log_block_end(
+            final_trust=np.array([final_trust]),
+            final_accuracy=final_accuracy,
+            convergence_achieved=convergence_achieved,
+            block_count=block_count
+        )
         
         # Set final results
         if results["iterations"]:
@@ -650,6 +826,109 @@ class TrustUpdateLoop:
             self._current_trust = state["current_trust"]
         if "current_state" in state:
             self._current_state = state["current_state"]
+    
+    def _calculate_entropy_scores(self, probabilities: np.ndarray) -> np.ndarray:
+        """
+        Calculate entropy scores for outlier detection.
+        
+        Args:
+            probabilities: Prediction probabilities (n_samples, n_classes)
+            
+        Returns:
+            Entropy scores for each sample
+        """
+        # Calculate entropy: -sum(p * log(p))
+        epsilon = 1e-10  # Avoid log(0)
+        log_probs = np.log(probabilities + epsilon)
+        entropy = -np.sum(probabilities * log_probs, axis=1)
+        return entropy
+    
+    def _make_row_decisions(self, v_q: np.ndarray, v_b: np.ndarray, v_l: np.ndarray, 
+                           entropy_scores: np.ndarray) -> List[str]:
+        """
+        Make decisions for each row based on validation scores and entropy.
+        
+        Args:
+            v_q: Pattern validation scores
+            v_b: Presence validation scores
+            v_l: Logic validation scores
+            entropy_scores: Entropy scores for outlier detection
+            
+        Returns:
+            List of decisions for each row
+        """
+        decisions = []
+        for i in range(len(v_q)):
+            # Check for low scores
+            low_v_q = v_q[i] < 0.3
+            low_v_b = v_b[i] < 0.3
+            low_v_l = v_l[i] < 0.3
+            high_entropy = entropy_scores[i] > 2.0
+            
+            # Make decision based on conditions
+            if high_entropy:
+                decisions.append("down-weighted")
+            elif low_v_q or low_v_b or low_v_l:
+                decisions.append("flagged")
+            else:
+                decisions.append("retained")
+        
+        return decisions
+    
+    def _detect_logic_failures(self, X: np.ndarray, predictions: np.ndarray, v_l: np.ndarray) -> List[Dict]:
+        """
+        Detect logic rule failures with feature details.
+        
+        Args:
+            X: Input features
+            predictions: Model predictions
+            v_l: Logic validation scores
+            
+        Returns:
+            List of logic failures with feature details
+        """
+        failures = []
+        
+        # Define logic rules for heart disease dataset
+        # Assuming UCI Heart Disease format with features like age, sex, cp, etc.
+        for i in range(len(predictions)):
+            if v_l[i] < 0.3:  # Low logic validation score
+                failure = {
+                    "row_id": i,
+                    "prediction": int(predictions[i]),
+                    "logic_score": float(v_l[i]),
+                    "triggered_features": [],
+                    "rule_violations": []
+                }
+                
+                # Check specific logic rules (example for heart disease)
+                if len(X.shape) > 1 and X.shape[1] >= 13:  # Heart disease has 13 features
+                    # Rule 1: Age should be reasonable for heart disease
+                    if X[i, 0] < 20 and predictions[i] == 1:  # Age < 20 but predicted heart disease
+                        failure["rule_violations"].append("age_too_young_for_heart_disease")
+                        failure["triggered_features"].append({"feature": "age", "value": float(X[i, 0])})
+                    
+                    # Rule 2: Sex-specific patterns
+                    if X[i, 1] == 0 and X[i, 0] < 40 and predictions[i] == 1:  # Female < 40 with heart disease
+                        failure["rule_violations"].append("young_female_heart_disease_unlikely")
+                        failure["triggered_features"].append({
+                            "feature": "sex", "value": float(X[i, 1]),
+                            "feature2": "age", "value2": float(X[i, 0])
+                        })
+                    
+                    # Rule 3: Chest pain type consistency
+                    if X[i, 2] == 4 and predictions[i] == 0:  # Asymptomatic but no heart disease
+                        failure["rule_violations"].append("asymptomatic_but_no_heart_disease")
+                        failure["triggered_features"].append({"feature": "chest_pain_type", "value": float(X[i, 2])})
+                
+                if failure["rule_violations"]:
+                    failures.append(failure)
+        
+        return failures
+    
+    def save_block_logs(self, filename: str = None) -> str:
+        """Save block logs to file."""
+        return self._block_logger.save_block_logs(filename)
 
 
 def create_trust_loop(**kwargs) -> TrustUpdateLoop:

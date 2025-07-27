@@ -623,6 +623,13 @@ class SREEDashboard:
             self.logger.info("Running PPP loop...")
             ppp_results = trust_loop.run_ppp_loop(X_train_scaled, y_train, X_test_scaled, y_test)
             
+            # Save block logs for detailed diagnostics
+            try:
+                block_logs_file = trust_loop.save_block_logs()
+                self.logger.info(f"Block logs saved to: {block_logs_file}")
+            except Exception as e:
+                self.logger.warning(f"Could not save block logs: {str(e)}")
+            
             # Get individual layer results with scaled data
             pattern_trust = self.pattern_validator.validate(X_test_scaled, y_test)
             presence_trust = self.presence_validator.validate(X_test_scaled, y_test)
@@ -933,7 +940,8 @@ class SREEDashboard:
             self.create_client_results_section()
             
         elif page == "📊 Heart Disease Report":
-            self.create_heart_disease_report_section()
+            self.create_block_logs_section()
+        self.create_heart_disease_report_section()
         
         # Footer
         st.markdown("---")
@@ -1650,6 +1658,153 @@ class SREEDashboard:
                 st.error(f"Error reading dataset: {str(e)}")
         else:
             st.warning("Dataset file not found!")
+
+    def create_block_logs_section(self):
+        """Create block-level logs section for detailed diagnostics."""
+        st.header("🔍 Block-Level Diagnostics")
+        
+        st.info("""
+        **Detailed row-level diagnostics per block showing V_q, V_b, V_l scores, decisions, and logic rule failures.**
+        This transparency proves the system is self-refining, not just repeating predictions blindly.
+        """)
+        
+        # Load and display block logs
+        block_logs = self.load_block_logs()
+        
+        if not block_logs:
+            st.warning("No block logs found. Run SREE analysis to generate detailed diagnostics.")
+            return
+        
+        # Display block summary
+        st.subheader("📊 Block Summary")
+        
+        for block in block_logs:
+            with st.expander(f"Block {block['block_id']} - {block['n_samples']} samples"):
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Samples", block['n_samples'])
+                
+                with col2:
+                    st.metric("Features", block['n_features'])
+                
+                with col3:
+                    class_dist = block['class_distribution']
+                    st.metric("Classes", f"{len(class_dist)}")
+                
+                with col4:
+                    if 'final_results' in block and block['final_results']:
+                        final_acc = block['final_results'].get('final_accuracy', 0)
+                        st.metric("Final Accuracy", f"{final_acc:.2%}")
+                
+                # Show iterations
+                if block['iterations']:
+                    st.subheader("🔄 Iteration Details")
+                    
+                    for iteration in block['iterations']:
+                        with st.expander(f"Iteration {iteration['iteration']}"):
+                            # Summary metrics
+                            summary = iteration['summary']
+                            col1, col2, col3, col4 = st.columns(4)
+                            
+                            with col1:
+                                st.metric("Avg V_q", f"{summary['avg_v_q']:.3f}")
+                            
+                            with col2:
+                                st.metric("Avg V_b", f"{summary['avg_v_b']:.3f}")
+                            
+                            with col3:
+                                st.metric("Avg V_l", f"{summary['avg_v_l']:.3f}")
+                            
+                            with col4:
+                                st.metric("Avg Entropy", f"{summary['avg_entropy']:.3f}" if summary['avg_entropy'] else "N/A")
+                            
+                            # Decision breakdown
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Retained", summary['n_retained'])
+                            
+                            with col2:
+                                st.metric("Flagged", summary['n_flagged'])
+                            
+                            with col3:
+                                st.metric("Down-weighted", summary['n_down_weighted'])
+                            
+                            # Row-level diagnostics
+                            if iteration['row_diagnostics']:
+                                st.subheader("📋 Row-Level Diagnostics")
+                                
+                                # Create a DataFrame for better display
+                                diagnostics_data = []
+                                for diag in iteration['row_diagnostics']:
+                                    diagnostics_data.append({
+                                        'Row ID': diag['row_id'],
+                                        'V_q Score': f"{diag['v_q_score']:.3f}",
+                                        'V_b Score': f"{diag['v_b_score']:.3f}",
+                                        'V_l Score': f"{diag['v_l_score']:.3f}",
+                                        'Decision': diag['decision'],
+                                        'Entropy': f"{diag['entropy']:.3f}" if diag['entropy'] else "N/A",
+                                        'Outlier': "✅" if diag['is_outlier'] else "❌"
+                                    })
+                                
+                                df_diagnostics = pd.DataFrame(diagnostics_data)
+                                st.dataframe(df_diagnostics, use_container_width=True)
+                            
+                            # Logic failures
+                            if iteration['logic_failures']:
+                                st.subheader("⚠️ Logic Rule Failures")
+                                
+                                for failure in iteration['logic_failures']:
+                                    with st.expander(f"Row {failure['row_id']} - {len(failure['rule_violations'])} violations"):
+                                        st.write(f"**Prediction:** {failure['prediction']}")
+                                        st.write(f"**Logic Score:** {failure['logic_score']:.3f}")
+                                        
+                                        if failure['rule_violations']:
+                                            st.write("**Rule Violations:**")
+                                            for violation in failure['rule_violations']:
+                                                st.write(f"• {violation}")
+                                        
+                                        if failure['triggered_features']:
+                                            st.write("**Triggered Features:**")
+                                            for feature in failure['triggered_features']:
+                                                if 'feature2' in feature:
+                                                    st.write(f"• {feature['feature']}: {feature['value']}, {feature['feature2']}: {feature['value2']}")
+                                                else:
+                                                    st.write(f"• {feature['feature']}: {feature['value']}")
+        
+        # Download block logs
+        st.subheader("📥 Download Block Logs")
+        
+        if block_logs:
+            # Convert to JSON for download
+            logs_json = json.dumps(block_logs, indent=2)
+            
+            st.download_button(
+                label="📄 Download Block Logs (JSON)",
+                data=logs_json,
+                file_name=f"block_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json",
+                help="Download detailed block-level diagnostics"
+            )
+    
+    def load_block_logs(self) -> List[Dict]:
+        """Load block logs from the logs directory."""
+        block_logs = []
+        
+        # Look for per_block_logs files
+        for file in os.listdir('logs'):
+            if file.startswith('per_block_logs_') and file.endswith('.json'):
+                try:
+                    with open(os.path.join('logs', file), 'r') as f:
+                        logs = json.load(f)
+                        if isinstance(logs, list):
+                            block_logs.extend(logs)
+                        else:
+                            block_logs.append(logs)
+                except Exception as e:
+                    st.error(f"Error loading block logs from {file}: {str(e)}")
+        
+        return block_logs
 
 def main():
     """Main dashboard function."""
