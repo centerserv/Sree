@@ -19,6 +19,7 @@ import io
 import base64
 import warnings
 import os
+from typing import List, Dict
 
 # Suppress sklearn warnings about classification vs regression
 warnings.filterwarnings('ignore', category=UserWarning, module='sklearn.metrics._classification')
