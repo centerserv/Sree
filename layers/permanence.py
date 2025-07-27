@@ -138,6 +138,11 @@ class PermanenceValidator(Validator):
         Returns:
             Blockchain validation scores V_b
         """
+        # Convert labels to numpy array if it's a pandas Series
+        if hasattr(labels, 'values'):
+            labels = labels.values
+        labels = np.array(labels)
+        
         n_samples = len(labels)
         blockchain_scores = np.zeros(n_samples)
         
@@ -200,6 +205,12 @@ class PermanenceValidator(Validator):
         Returns:
             List of validation records
         """
+        # Convert labels to numpy array if it's a pandas Series
+        if labels is not None and hasattr(labels, 'values'):
+            labels = labels.values
+        if labels is not None:
+            labels = np.array(labels)
+        
         records = []
         timestamp = datetime.now().isoformat()
         

@@ -276,6 +276,11 @@ class LogicValidator(Validator):
         Returns:
             Label consistency scores
         """
+        # Convert labels to numpy array if it's a pandas Series
+        if hasattr(labels, 'values'):
+            labels = labels.values
+        labels = np.array(labels)
+        
         n_samples = len(data)
         consistency_scores = np.ones(n_samples)
         
