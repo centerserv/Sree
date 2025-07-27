@@ -18,6 +18,7 @@ from datetime import datetime
 import io
 import base64
 import warnings
+import os
 
 # Suppress sklearn warnings about classification vs regression
 warnings.filterwarnings('ignore', category=UserWarning, module='sklearn.metrics._classification')
