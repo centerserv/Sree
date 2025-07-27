@@ -93,7 +93,7 @@ class BlockLogger:
                 "v_l_score": float(v_l[i]),
                 "decision": decisions[i] if i < len(decisions) else "unknown",
                 "entropy": float(entropy_scores[i]) if entropy_scores is not None else None,
-                "is_outlier": entropy_scores[i] > 2.0 if entropy_scores is not None else False
+                "is_outlier": bool(entropy_scores[i] > 2.0) if entropy_scores is not None else False
             }
             iteration_log["row_diagnostics"].append(row_diagnostic)
         
@@ -134,6 +134,8 @@ class BlockLogger:
                 return int(obj)
             elif isinstance(obj, np.floating):
                 return float(obj)
+            elif isinstance(obj, bool):
+                return bool(obj)
             elif isinstance(obj, dict):
                 return {k: convert_numpy_types(v) for k, v in obj.items()}
             elif isinstance(obj, list):
@@ -902,24 +904,24 @@ class TrustUpdateLoop:
                 }
                 
                 # Check specific logic rules (example for heart disease)
-                if len(X.shape) > 1 and X.shape[1] >= 13:  # Heart disease has 13 features
-                    # Rule 1: Age should be reasonable for heart disease
-                    if X[i, 0] < 20 and predictions[i] == 1:  # Age < 20 but predicted heart disease
-                        failure["rule_violations"].append("age_too_young_for_heart_disease")
-                        failure["triggered_features"].append({"feature": "age", "value": float(X[i, 0])})
+                if len(X.shape) > 1 and X.shape[1] >= 3:  # Need at least 3 features
+                    # Rule 1: First feature should be reasonable
+                    if X[i, 0] < 0 and predictions[i] == 1:  # Negative value but predicted positive
+                        failure["rule_violations"].append("negative_feature_but_positive_prediction")
+                        failure["triggered_features"].append({"feature": "feature_0", "value": float(X[i, 0])})
                     
-                    # Rule 2: Sex-specific patterns
-                    if X[i, 1] == 0 and X[i, 0] < 40 and predictions[i] == 1:  # Female < 40 with heart disease
-                        failure["rule_violations"].append("young_female_heart_disease_unlikely")
+                    # Rule 2: Second feature pattern
+                    if X[i, 1] < -2 and predictions[i] == 1:  # Very low second feature but positive prediction
+                        failure["rule_violations"].append("very_low_feature_but_positive_prediction")
                         failure["triggered_features"].append({
-                            "feature": "sex", "value": float(X[i, 1]),
-                            "feature2": "age", "value2": float(X[i, 0])
+                            "feature": "feature_1", "value": float(X[i, 1]),
+                            "feature2": "feature_0", "value2": float(X[i, 0])
                         })
                     
-                    # Rule 3: Chest pain type consistency
-                    if X[i, 2] == 4 and predictions[i] == 0:  # Asymptomatic but no heart disease
-                        failure["rule_violations"].append("asymptomatic_but_no_heart_disease")
-                        failure["triggered_features"].append({"feature": "chest_pain_type", "value": float(X[i, 2])})
+                    # Rule 3: Third feature consistency
+                    if X[i, 2] > 3 and predictions[i] == 0:  # Very high third feature but negative prediction
+                        failure["rule_violations"].append("very_high_feature_but_negative_prediction")
+                        failure["triggered_features"].append({"feature": "feature_2", "value": float(X[i, 2])})
                 
                 if failure["rule_violations"]:
                     failures.append(failure)

@@ -30,7 +30,7 @@ def test_block_logging_with_heart_disease():
     # Load heart disease dataset
     print("📊 Loading heart disease dataset...")
     data_loader = DataLoader()
-    heart_data = data_loader.load_heart_disease()
+    heart_data = data_loader.load_heart()
     
     if heart_data is None:
         print("❌ Could not load heart disease dataset")
