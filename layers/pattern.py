@@ -163,12 +163,21 @@ class PatternValidator(Validator):
         self._create_adaptive_meta_ensemble()
     
     def _create_adaptive_meta_ensemble(self):
-        """Create ensemble with advanced confidence MLP and ensemble methods."""
-        # Create heterogeneous ensemble for better performance
+        """Create ensemble with robust classifiers for better performance."""
+        # Create heterogeneous ensemble with proven classifiers
         estimators = []
         
-        # 1. Advanced Confidence MLP (main model)
-        mlp = AdvancedConfidenceMLP(random_state=42)
+        # 1. MLP Classifier (main neural network)
+        mlp = MLPClassifier(
+            hidden_layer_sizes=(256, 128, 64),
+            learning_rate_init=0.001,
+            alpha=0.0001,
+            max_iter=1000,
+            random_state=42,
+            early_stopping=True,
+            validation_fraction=0.15,
+            n_iter_no_change=20
+        )
         estimators.append(('mlp', mlp))
         
         # 2. Random Forest for robustness
@@ -208,9 +217,18 @@ class PatternValidator(Validator):
 
     def fit(self, X: np.ndarray, y: np.ndarray):
         logger = logging.getLogger(__name__)
-        logger.info("Training PatternValidator with MLP ensemble...")
+        logger.info("Training PatternValidator with robust ensemble...")
+        
+        # Train the ensemble model
         self.model.fit(X, y)
         self._is_trained = True
+        
+        # Store feature names if available
+        if hasattr(X, 'columns'):
+            self._feature_names = list(X.columns)
+        else:
+            self._feature_names = [f"feature_{i}" for i in range(X.shape[1])]
+        
         return self
 
     def train(self, X_train: np.ndarray, y_train: np.ndarray, X_test: np.ndarray = None, y_test: np.ndarray = None):
