@@ -575,6 +575,11 @@ class SREEDashboard:
     def run_sree_analysis(self, X: np.ndarray, y: np.ndarray) -> dict:
         """Run SREE analysis on uploaded data."""
         try:
+            # Set deterministic random seeds for consistent results
+            np.random.seed(42)
+            import random
+            random.seed(42)
+            
             # Split data
             from sklearn.model_selection import train_test_split
             from sklearn.preprocessing import StandardScaler
@@ -601,13 +606,21 @@ class SREEDashboard:
             X_train_scaled = scaler.fit_transform(X_train)
             X_test_scaled = scaler.transform(X_test)
             
+            # Create a new trust loop with the dashboard's validators to ensure consistency
+            trust_loop = TrustUpdateLoop(validators=[
+                self.pattern_validator,
+                self.presence_validator,
+                self.permanence_validator,
+                self.logic_validator
+            ])
+            
             # Train pattern validator with scaled data
             self.logger.info("Training Pattern validator...")
             train_results = self.pattern_validator.train(X_train_scaled, y_train, X_test_scaled, y_test)
             
             # Run PPP loop with scaled data
             self.logger.info("Running PPP loop...")
-            ppp_results = self.trust_loop.run_ppp_loop(X_train_scaled, y_train, X_test_scaled, y_test)
+            ppp_results = trust_loop.run_ppp_loop(X_train_scaled, y_train, X_test_scaled, y_test)
             
             # Get individual layer results with scaled data
             pattern_trust = self.pattern_validator.validate(X_test_scaled, y_test)
