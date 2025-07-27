@@ -7,11 +7,19 @@ set -e
 
 echo "🚀 Updating SREE Server..."
 
+# Load environment variables from .env file
+if [ -f .env ]; then
+    echo "📁 Loading configuration from .env file..."
+    export $(cat .env | grep -v '^#' | xargs)
+else
+    echo "⚠️  .env file not found, using default configuration"
+fi
+
 # VPS Configuration
-VPS_IP="92.243.64.55"
-VPS_USER="root"
+VPS_IP="${VPS_IP:-92.243.64.55}"
+VPS_USER="${VPS_USER:-root}"
 VPS_PASS="${VPS_PASSWORD:-}"  # Set via environment variable
-SSH_PORT="22"
+SSH_PORT="${SSH_PORT:-22}"
 
 # Colors for output
 GREEN='\033[0;32m'
