@@ -217,13 +217,18 @@ class PatternValidator(Validator):
         
         # Create advanced stacking ensemble for better performance
         from sklearn.ensemble import StackingClassifier
-        from sklearn.linear_model import RidgeClassifier
+        from sklearn.linear_model import LogisticRegression
         
         # Base estimators
         base_estimators = estimators
         
-        # Meta-learner (Ridge Classifier for better generalization)
-        meta_learner = RidgeClassifier(alpha=1.0, random_state=42)
+        # Meta-learner (Logistic Regression supports predict_proba)
+        meta_learner = LogisticRegression(
+            C=1.0,
+            max_iter=1000,
+            random_state=42,
+            solver='liblinear'
+        )
         
         # Create stacking ensemble
         self.model = StackingClassifier(
