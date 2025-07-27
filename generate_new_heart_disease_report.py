@@ -408,7 +408,12 @@ class NewHeartDiseaseReportGenerator:
     
     def generate_pdf(self):
         """Generate the comprehensive PDF report."""
-        filename = f"SREE_Phase_1_New_Heart_Disease_Dataset_Analysis_{self.timestamp}.pdf"
+        # Create reports directory if it doesn't exist
+        reports_dir = "reports"
+        if not os.path.exists(reports_dir):
+            os.makedirs(reports_dir)
+        
+        filename = os.path.join(reports_dir, f"SREE_Phase_1_New_Heart_Disease_Dataset_Analysis_{self.timestamp}.pdf")
         
         # Load and analyze data
         self.load_new_heart_disease_dataset()
