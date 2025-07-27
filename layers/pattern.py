@@ -217,7 +217,6 @@ class PatternValidator(Validator):
         
         # Create advanced stacking ensemble for better performance
         from sklearn.ensemble import StackingClassifier
-        from sklearn.linear_model import LogisticRegression
         
         # Base estimators
         base_estimators = estimators
