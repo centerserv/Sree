@@ -2518,12 +2518,21 @@ class SREEDashboard:
                 help="Number of consecutive blocks in range to stop"
             )
             
-            st.markdown("**📁 Dataset Selection**")
-            dataset_option = st.selectbox(
-                "Select Dataset",
-                ["Heart Disease", "Synthetic Credit Risk", "Custom Upload"],
-                help="Choose dataset for intelligent block control"
-            )
+            st.markdown("**📁 Current Dataset**")
+            
+            # Check if dataset is loaded
+            if st.session_state.uploaded_df is not None:
+                st.success("✅ Custom dataset loaded")
+                st.write(f"**Shape:** {st.session_state.uploaded_df.shape}")
+                st.write(f"**Features:** {len(st.session_state.uploaded_df.columns) - 1}")
+                st.write(f"**Target:** {st.session_state.uploaded_df.columns[-1]}")
+                dataset_source = "Custom Upload"
+            else:
+                st.info("📊 Using default Heart Disease dataset")
+                st.write("**Dataset:** UCI Heart Disease")
+                st.write("**Features:** 13")
+                st.write("**Target:** Binary classification")
+                dataset_source = "Heart Disease"
         
         # Display current configuration
         st.subheader("📋 Current Configuration")
@@ -2540,7 +2549,7 @@ class SREEDashboard:
         
         with config_col3:
             st.metric("Consecutive Blocks", consecutive_blocks)
-            st.metric("Dataset", dataset_option)
+            st.metric("Dataset", dataset_source)
         
         # Run button
         st.subheader("🚀 Execute Intelligent Block Control")
@@ -2553,22 +2562,18 @@ class SREEDashboard:
                     trust_range = (trust_min, trust_max)
                     accuracy_range = (accuracy_min / 100.0, accuracy_max / 100.0)  # Convert to decimal
                     
-                    # Load dataset
-                    if dataset_option == "Heart Disease":
+                    # Load dataset based on current session state
+                    if st.session_state.uploaded_df is not None:
+                        # Use uploaded custom dataset
+                        X = st.session_state.uploaded_df.drop(columns=[st.session_state.uploaded_df.columns[-1]]).values
+                        y = st.session_state.uploaded_df.iloc[:, -1].values
+                        st.info(f"📊 Using custom dataset: {st.session_state.uploaded_df.shape[0]} samples, {st.session_state.uploaded_df.shape[1]-1} features")
+                    else:
+                        # Use default Heart Disease dataset
                         from data_loader import DataLoader
                         loader = DataLoader()
                         X, y = loader.load_heart()
-                    elif dataset_option == "Synthetic Credit Risk":
-                        from data_loader import DataLoader
-                        loader = DataLoader()
-                        X, y = loader.load_synthetic_credit_risk()
-                    else:
-                        if st.session_state.uploaded_df is not None:
-                            X = st.session_state.uploaded_df.drop(columns=[st.session_state.uploaded_df.columns[-1]]).values
-                            y = st.session_state.uploaded_df.iloc[:, -1].values
-                        else:
-                            st.error("❌ Please upload a custom dataset first")
-                            return
+                        st.info("📊 Using default Heart Disease dataset")
                     
                     # Split data
                     from sklearn.model_selection import train_test_split
