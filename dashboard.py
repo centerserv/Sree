@@ -1139,20 +1139,20 @@ class SREEDashboard:
         col1, col2 = st.columns(2)
         with col1:
             # Accuracy validation
-            accuracy_ok = results['accuracy'] >= 0.85
+            accuracy_ok = results.get('accuracy', 0.0) >= 0.85
             st.write(f"**Accuracy ≥ 0.85:** {'✅' if accuracy_ok else '❌'}")
             
             # Trust validation
-            trust_ok = results['trust'] >= 0.85
+            trust_ok = results.get('trust_score', 0.0) >= 0.85
             st.write(f"**Trust Score ≥ 0.85:** {'✅' if trust_ok else '❌'}")
         
         with col2:
             # Entropy validation
-            entropy_ok = results['entropy'] > 0
+            entropy_ok = results.get('entropy', 0.0) > 0
             st.write(f"**Entropy > 0:** {'✅' if entropy_ok else '❌'}")
             
             # Block count validation
-            block_ok = results['block_count'] > 0
+            block_ok = results.get('block_count', 0) > 0
             st.write(f"**Block Count > 0:** {'✅' if block_ok else '❌'}")
         
         # Overall validation
@@ -1166,7 +1166,7 @@ class SREEDashboard:
         st.subheader("Validation Report")
         validation_data = {
             'Check': ['Accuracy', 'Trust Score', 'Entropy', 'Block Count'],
-            'Value': [f"{results['accuracy']:.3f}", f"{results['trust']:.3f}", f"{results['entropy']:.3f}", str(results['block_count'])],
+            'Value': [f"{results.get('accuracy', 0.0):.3f}", f"{results.get('trust_score', 0.0):.3f}", f"{results.get('entropy', 0.0):.3f}", str(results.get('block_count', 0))],
             'Target': ['≥ 0.85', '≥ 0.85', '> 0', '> 0'],
             'Status': ['✅' if accuracy_ok else '❌', 
                       '✅' if trust_ok else '❌',
@@ -1207,7 +1207,7 @@ class SREEDashboard:
                 # Convert results to DataFrame
                 export_data = {
                     'Metric': ['Accuracy', 'Trust Score', 'Entropy', 'Block Count'],
-                    'Value': [f"{results['accuracy']:.3f}", f"{results['trust']:.3f}", f"{results['entropy']:.3f}", str(results['block_count'])]
+                    'Value': [f"{results.get('accuracy', 0.0):.3f}", f"{results.get('trust_score', 0.0):.3f}", f"{results.get('entropy', 0.0):.3f}", str(results.get('block_count', 0))]
                 }
                 export_df = pd.DataFrame(export_data)
                 
