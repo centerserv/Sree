@@ -164,8 +164,9 @@ class IntelligentBlockControl:
         controlled_accuracy = self.intelligent_accuracy_control(raw_accuracy)
         controlled_entropy = self.intelligent_entropy_control(raw_entropy)
         
-        # Get block count
-        block_count = ppp_results.get('block_count', 0)
+        # Get block count from permanence validator
+        permanence_stats = self.permanence_validator.get_ledger_statistics()
+        block_count = permanence_stats.get('total_blocks', 0)
         
         # Check if all metrics meet requirements
         accuracy_ok = controlled_accuracy >= self.accuracy_threshold
