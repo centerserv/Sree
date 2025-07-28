@@ -1036,13 +1036,13 @@ class SREEDashboard:
         # Key metrics
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Accuracy", f"{results['accuracy']:.3f}")
+            st.metric("Accuracy", f"{results.get('accuracy', 0.0):.3f}")
         with col2:
-            st.metric("Trust Score", f"{results['trust']:.3f}")
+            st.metric("Trust Score", f"{results.get('trust_score', 0.0):.3f}")
         with col3:
-            st.metric("Entropy", f"{results['entropy']:.3f}")
+            st.metric("Entropy", f"{results.get('entropy', 0.0):.3f}")
         with col4:
-            st.metric("Block Count", results['block_count'])
+            st.metric("Block Count", results.get('block_count', 0))
         
         # Detailed results
         st.subheader("Detailed Analysis")
@@ -1067,8 +1067,8 @@ class SREEDashboard:
         st.subheader("Performance Comparison")
         metrics_data = {
             'Metric': ['Accuracy', 'Trust Score', 'Entropy', 'Block Count'],
-            'Value': [f"{results['accuracy']:.3f}", f"{results['trust']:.3f}", f"{results['entropy']:.3f}", str(results['block_count'])],
-            'Target': ['0.850', '0.850', '>0', '>0']
+            'Value': [f"{results.get('accuracy', 0.0):.3f}", f"{results.get('trust_score', 0.0):.3f}", f"{results.get('entropy', 0.0):.3f}", str(results.get('block_count', 0))],
+            'Target': ['≥0.95', '≥0.85', '≤1.5', '>0']
         }
         metrics_df = pd.DataFrame(metrics_data)
         st.dataframe(metrics_df, use_container_width=True)
@@ -1106,9 +1106,9 @@ class SREEDashboard:
                 st.plotly_chart(fig, use_container_width=True)
         # Metrics comparison
         st.subheader("Metrics Overview")
-        st.markdown("_Bar chart comparing accuracy, trust, and entropy for the current run. Higher is better. Trust and accuracy should be ≥ 0.85 for Phase 1._")
-        metrics = ['accuracy', 'trust', 'entropy']
-        values = [results['accuracy'], results['trust'], results['entropy']]
+        st.markdown("_Bar chart comparing accuracy, trust, and entropy for the current run. Higher is better for accuracy and trust, lower is better for entropy._")
+        metrics = ['accuracy', 'trust_score', 'entropy']
+        values = [results.get('accuracy', 0.0), results.get('trust_score', 0.0), results.get('entropy', 0.0)]
         fig = go.Figure(data=[
             go.Bar(x=metrics, y=values, text=[f'{v:.3f}' for v in values], textposition='auto')
         ])
@@ -2388,6 +2388,7 @@ class SREEDashboard:
         """
         st.title("🎯 Intelligent Block Control System")
         st.markdown("Configure and run the intelligent block creation control with automatic stopping conditions.")
+        st.info("ℹ️ **Note**: This system uses the same unified block creation logic as 'Run SREE Analysis' for consistency.")
         
         # Configuration section
         st.subheader("⚙️ Control Configuration")
@@ -2562,6 +2563,10 @@ class SREEDashboard:
                         required_consecutive_ok=consecutive_blocks,
                         dataset_name="custom"
                     )
+                    
+                    # Clear any old analysis results to avoid confusion
+                    if 'analysis_results' in st.session_state:
+                        del st.session_state.analysis_results
                     
                     # Display results
                     self._display_intelligent_block_results(results)
