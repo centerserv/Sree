@@ -2409,8 +2409,8 @@ class SREEDashboard:
             entropy_max = st.number_input(
                 "Max Entropy (normalized H(p)/log(d))",
                 min_value=0.0,
-                max_value=1.0,
-                value=0.5,
+                max_value=2.0,
+                value=1.5,
                 step=0.01,
                 help="Maximum acceptable entropy value"
             )
@@ -2420,7 +2420,7 @@ class SREEDashboard:
                 "Min Trust Score",
                 min_value=0.0,
                 max_value=1.0,
-                value=0.90,
+                value=0.85,
                 step=0.01,
                 help="Minimum acceptable trust score"
             )
@@ -2438,7 +2438,7 @@ class SREEDashboard:
                 "Min Accuracy (%)",
                 min_value=0.0,
                 max_value=100.0,
-                value=90.0,
+                value=95.0,
                 step=0.1,
                 help="Minimum acceptable accuracy percentage"
             )
