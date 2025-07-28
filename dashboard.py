@@ -582,7 +582,7 @@ class SREEDashboard:
                 st.error(f"Error reading file: {str(e)}")
     
     def run_sree_analysis(self, X: np.ndarray, y: np.ndarray) -> dict:
-        """Run SREE analysis on uploaded data using the same logic as main.py."""
+        """Run SREE analysis on uploaded data using the centralized logic."""
         try:
             # Set deterministic random seeds for consistent results
             np.random.seed(42)
@@ -602,15 +602,9 @@ class SREEDashboard:
                     f"not a feature column like 'age'."
                 )
             
-            # Prepare dataset data in the same format as main.py
-            dataset_data = {
-                'X': X,
-                'y': y,
-                'name': 'custom_dataset'
-            }
-            
-            # Use the same logic as main.py
-            results = self.run_block_creation_system_dashboard('custom', dataset_data, n_tests=1)
+            # Use the centralized block creation system
+            from block_creation_system import run_single_analysis
+            results = run_single_analysis(X, y, dataset_name="custom")
             
             return results
             
@@ -2655,94 +2649,7 @@ class SREEDashboard:
             help="Download the complete intelligent block control results"
         )
 
-    def run_block_creation_system_dashboard(self, dataset_name: str, dataset_data: dict, n_tests: int = 3) -> dict:
-        """
-        🔁 Trust Loop with Block Creation Logic (Dashboard Version)
-        This logic runs the trust loop iteratively:
-        - Starts at Block 1
-        - Repeats until metrics are within acceptable range for 2 consecutive blocks OR 25 blocks max
-        - Logs score evolution and stopping reason
-        """
-        import logging
-        
-        # Client-specified acceptable value ranges (standard across industries)
-        ACCURACY_THRESHOLD = 0.95  # ≥ 95%
-        TRUST_THRESHOLD = 0.85     # ≥ 85%
-        ENTROPY_THRESHOLD = 1.5    # ≤ 1.5 (client requirement)
-        
-        # Stop conditions
-        MAX_BLOCKS = 25
-        REQUIRED_CONSECUTIVE_OK = 2
-        
-        # Initialize validators
-        pattern_validator = PatternValidator()
-        presence_validator = PresenceValidator()
-        permanence_validator = PermanenceValidator()
-        logic_validator = LogicValidator()
-        
-        # Initialize trust loop
-        trust_loop = TrustUpdateLoop(validators=[
-            pattern_validator, presence_validator, permanence_validator, logic_validator
-        ])
-        
-        # Prepare data
-        X = dataset_data['X']
-        y = dataset_data['y']
-        
-        # Split data
-        from sklearn.model_selection import train_test_split
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        
-        # Scale features for better performance
-        from sklearn.preprocessing import StandardScaler
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        # Train pattern validator
-        train_results = pattern_validator.train(X_train_scaled, y_train, X_test_scaled, y_test)
-        
-        # Run PPP loop
-        ppp_results = trust_loop.run_ppp_loop(X_train_scaled, y_train, X_test_scaled, y_test)
-        
-        # Get final metrics
-        accuracy = ppp_results.get('final_accuracy', 0.0)
-        trust_score = ppp_results.get('final_trust', 0.0)
-        
-        # Get entropy from presence validator
-        presence_stats = presence_validator.get_entropy_statistics()
-        entropy = presence_stats.get('mean_entropy', 0.0)
-        
-        # Apply entropy reduction technique for client requirement
-        if entropy > ENTROPY_THRESHOLD:
-            entropy_reduction_factor = ENTROPY_THRESHOLD / entropy
-            adjusted_entropy = entropy * entropy_reduction_factor
-            entropy = adjusted_entropy
-        
-        # Get block count from permanence validator
-        permanence_stats = permanence_validator.get_ledger_statistics()
-        block_count = permanence_stats.get('total_blocks', 0)
-        
-        # Check if metrics are within acceptable ranges
-        accuracy_ok = accuracy >= ACCURACY_THRESHOLD
-        trust_ok = trust_score >= TRUST_THRESHOLD
-        entropy_ok = entropy <= ENTROPY_THRESHOLD
-        
-        results = {
-            'accuracy': accuracy,
-            'trust_score': trust_score,
-            'entropy': entropy,
-            'block_count': block_count,
-            'accuracy_ok': accuracy_ok,
-            'trust_ok': trust_ok,
-            'entropy_ok': entropy_ok,
-            'ppp_results': ppp_results,
-            'train_results': train_results,
-            'presence_stats': presence_stats,
-            'permanence_stats': permanence_stats
-        }
-        
-        return results
+
 
 def main():
     """Main dashboard function."""
