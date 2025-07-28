@@ -602,9 +602,9 @@ class SREEDashboard:
                     f"not a feature column like 'age'."
                 )
             
-            # Use the centralized block creation system
-            from block_creation_system import run_single_analysis
-            results = run_single_analysis(X, y, dataset_name="custom")
+            # Use the Intelligent Block Control system
+            from intelligent_block_control import run_intelligent_block_control
+            results = run_intelligent_block_control(X, y, entropy_max=1.5, dataset_name="custom")
             
             return results
             
