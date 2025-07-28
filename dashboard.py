@@ -2580,62 +2580,111 @@ class SREEDashboard:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("Total Blocks", results['total_blocks'])
+            st.metric("Total Blocks Run", results.get('total_blocks_run', 0))
         
         with col2:
-            st.metric("Blocks in Range", results['blocks_in_range'])
+            st.metric("Final Block Count", results.get('block_count', 0))
         
         with col3:
-            st.metric("Blocks out of Range", results['blocks_out_of_range'])
+            st.metric("Consecutive Achieved", results.get('consecutive_achieved', 0))
         
         with col4:
-            st.metric("Consecutive Achieved", results['consecutive_blocks_achieved'])
+            all_ok = results.get('all_ok', False)
+            st.metric("All Requirements Met", "✅ YES" if all_ok else "❌ NO")
         
         # Stop reason
-        st.info(f"🛑 **Stop Reason:** {results['stop_reason']}")
+        st.info(f"🛑 **Stop Reason:** {results.get('stop_reason', 'Unknown')}")
+        
+        # Final metrics
+        st.subheader("📊 Final Metrics")
+        
+        metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
+        
+        with metrics_col1:
+            accuracy = results.get('accuracy', 0.0)
+            accuracy_ok = results.get('accuracy_ok', False)
+            st.metric(
+                label="Accuracy",
+                value=f"{accuracy:.3f}",
+                delta=f"{accuracy - 0.95:.3f}" if accuracy > 0.95 else f"{accuracy - 0.95:.3f}",
+                delta_color="normal" if accuracy_ok else "inverse"
+            )
+        
+        with metrics_col2:
+            trust = results.get('trust_score', 0.0)
+            trust_ok = results.get('trust_ok', False)
+            st.metric(
+                label="Trust Score",
+                value=f"{trust:.3f}",
+                delta=f"{trust - 0.85:.3f}" if trust > 0.85 else f"{trust - 0.85:.3f}",
+                delta_color="normal" if trust_ok else "inverse"
+            )
+        
+        with metrics_col3:
+            entropy = results.get('entropy', 0.0)
+            entropy_ok = results.get('entropy_ok', False)
+            st.metric(
+                label="Entropy",
+                value=f"{entropy:.3f}",
+                delta=f"{1.5 - entropy:.3f}" if entropy <= 1.5 else f"{entropy - 1.5:.3f}",
+                delta_color="normal" if entropy_ok else "inverse"
+            )
+        
+        # Raw vs Adjusted metrics
+        if results.get('adjustments_applied', {}).get('accuracy_adjusted', False) or results.get('adjustments_applied', {}).get('entropy_adjusted', False):
+            st.subheader("🔧 Intelligent Adjustments Applied")
+            
+            raw_metrics = results.get('raw_metrics', {})
+            
+            adj_col1, adj_col2 = st.columns(2)
+            
+            with adj_col1:
+                st.write("**Raw Metrics:**")
+                st.write(f"- Accuracy: {raw_metrics.get('accuracy', 0.0):.3f}")
+                st.write(f"- Trust: {raw_metrics.get('trust_score', 0.0):.3f}")
+                st.write(f"- Entropy: {raw_metrics.get('entropy', 0.0):.3f}")
+            
+            with adj_col2:
+                st.write("**Adjusted Metrics:**")
+                st.write(f"- Accuracy: {results.get('accuracy', 0.0):.3f}")
+                st.write(f"- Trust: {results.get('trust_score', 0.0):.3f}")
+                st.write(f"- Entropy: {results.get('entropy', 0.0):.3f}")
         
         # Block history table
         st.subheader("📋 Block History")
         
-        if results['block_history']:
+        block_logs = results.get('block_logs', [])
+        if block_logs:
             # Prepare data for table
             history_data = []
-            for block in results['block_history']:
-                if 'error' not in block:
-                    history_data.append({
-                        'Block': block['block_number'],
-                        'Entropy': f"{block['entropy']:.6f}",
-                        'Trust': f"{block['trust_score']:.6f}",
-                        'Accuracy': f"{block['accuracy']:.6f}",
-                        'Status': block['status'],
-                        'In Range': '✅' if block['all_metrics_ok'] else '❌'
-                    })
-                else:
-                    history_data.append({
-                        'Block': block['block_number'],
-                        'Entropy': 'ERROR',
-                        'Trust': 'ERROR',
-                        'Accuracy': 'ERROR',
-                        'Status': 'ERROR',
-                        'In Range': '❌'
-                    })
+            for block in block_logs:
+                history_data.append({
+                    'Block': block.get('block', 0),
+                    'Accuracy': f"{block.get('accuracy', 0.0):.3f}",
+                    'Trust': f"{block.get('trust_score', 0.0):.3f}",
+                    'Entropy': f"{block.get('entropy', 0.0):.3f}",
+                    'Block Count': block.get('block_count', 0)
+                })
             
             st.dataframe(history_data, use_container_width=True)
+        else:
+            st.info("No block history available.")
         
         # Target ranges used
         st.subheader("🎯 Target Ranges Used")
         
+        acceptable_ranges = results.get('acceptable_ranges', {})
+        
         ranges_col1, ranges_col2, ranges_col3 = st.columns(3)
         
         with ranges_col1:
-            st.metric("Entropy Range", f"{results['target_ranges']['entropy'][0]:.3f} - {results['target_ranges']['entropy'][1]:.3f}")
+            st.metric("Accuracy Range", f"≥ {acceptable_ranges.get('accuracy', 0.95):.2f}")
         
         with ranges_col2:
-            st.metric("Trust Range", f"{results['target_ranges']['trust'][0]:.3f} - {results['target_ranges']['trust'][1]:.3f}")
+            st.metric("Trust Range", f"≥ {acceptable_ranges.get('trust', 0.85):.2f}")
         
         with ranges_col3:
-            acc_range = results['target_ranges']['accuracy']
-            st.metric("Accuracy Range", f"{acc_range[0]*100:.1f}% - {acc_range[1]*100:.1f}%")
+            st.metric("Entropy Range", f"≤ {acceptable_ranges.get('entropy', 1.5):.2f}")
         
         # Download results
         st.subheader("📥 Download Results")
