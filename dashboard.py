@@ -602,9 +602,9 @@ class SREEDashboard:
                     f"not a feature column like 'age'."
                 )
             
-            # Use the Intelligent Block Control system
-            from intelligent_block_control import run_intelligent_block_control
-            results = run_intelligent_block_control(X, y, entropy_max=1.5, dataset_name="custom")
+            # Use the Unified Block Creation system
+            from unified_block_creation import run_unified_block_creation
+            results = run_unified_block_creation(X, y, dataset_name="custom")
             
             return results
             
@@ -2551,14 +2551,16 @@ class SREEDashboard:
                         trust_threshold=0.8
                     )
                     
-                    # Run intelligent block control
-                    results = trust_loop.run_intelligent_block_control(
-                        X_train, y_train, X_test, y_test,
-                        entropy_range=entropy_range,
-                        trust_range=trust_range,
-                        accuracy_range=accuracy_range,
+                    # Run unified block creation
+                    from unified_block_creation import run_unified_block_creation
+                    results = run_unified_block_creation(
+                        X, y,
+                        accuracy_threshold=accuracy_range[0],
+                        trust_threshold=trust_range[0],
+                        entropy_threshold=entropy_range[1],
                         max_blocks=max_blocks,
-                        consecutive_blocks_required=consecutive_blocks
+                        required_consecutive_ok=consecutive_blocks,
+                        dataset_name="custom"
                     )
                     
                     # Display results
