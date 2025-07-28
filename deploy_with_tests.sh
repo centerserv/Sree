@@ -42,8 +42,19 @@ else
     exit 1
 fi
 
-# Step 2: Check git status
-print_step "2. Checking Git Status"
+# Step 2: Run dashboard local test
+print_step "2. Running Dashboard Local Test"
+print_status "Testing dashboard locally before deployment..."
+
+if python3 test_dashboard_local.py; then
+    print_status "✅ Dashboard local test passed!"
+else
+    print_error "❌ Dashboard local test failed! Fix dashboard issues before deployment."
+    exit 1
+fi
+
+# Step 3: Check git status
+print_step "3. Checking Git Status"
 print_status "Checking for uncommitted changes..."
 
 if [ -n "$(git status --porcelain)" ]; then
@@ -63,8 +74,8 @@ else
     print_status "✅ No uncommitted changes found"
 fi
 
-# Step 3: Push to repository
-print_step "3. Pushing to Repository"
+# Step 4: Push to repository
+print_step "4. Pushing to Repository"
 print_status "Pushing changes to remote repository..."
 
 if git push origin main; then
@@ -74,8 +85,8 @@ else
     exit 1
 fi
 
-# Step 4: Deploy to server
-print_step "4. Deploying to Server"
+# Step 5: Deploy to server
+print_step "5. Deploying to Server"
 print_status "Starting server deployment..."
 
 if ./update_remote_server.sh; then
@@ -85,8 +96,8 @@ else
     exit 1
 fi
 
-# Step 5: Final verification
-print_step "5. Final Verification"
+# Step 6: Final verification
+print_step "6. Final Verification"
 print_status "Verifying deployment..."
 
 # Check if server is accessible
