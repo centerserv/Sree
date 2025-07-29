@@ -1271,6 +1271,10 @@ class SREEDashboard:
         # Add Per-Block Diagnostic Breakdown
         st.markdown("---")
         self.display_block_logs_inline(results)
+        
+        # 🎯 NEW: ENHANCED DATASET QUALITY INSIGHTS
+        st.markdown("---")
+        self.display_enhanced_diagnostic_insights(results)
     
     def display_block_logs_inline(self, results: dict):
         """Display block logs inline with the results for transparency."""
@@ -3317,6 +3321,272 @@ class SREEDashboard:
             mime="application/json",
             help="Download the complete intelligent block control results"
         )
+
+    def display_enhanced_diagnostic_insights(self, results: dict):
+        """Enhanced diagnostic insights for dataset owners - shows actionable recommendations."""
+        st.subheader("🎯 Dataset Quality Insights & Recommendations")
+        
+        st.success("""
+        **📊 For Dataset Owners**: This section shows exactly which rows and columns need attention 
+        to improve your dataset quality, with specific recommendations for each issue found.
+        """)
+        
+        # Get block logs from results
+        block_logs = results.get('block_logs', [])
+        
+        if not block_logs:
+            st.info("💡 Run analysis with 'Intelligent Block Control' enabled to see detailed dataset quality insights.")
+            return
+        
+        # Aggregate insights across all blocks
+        all_flagged_rows = []
+        column_issues = {}
+        action_summary = {'down-weighted': 0, 'flagged': 0, 'retained': 0}
+        
+        # Process all blocks to extract actionable insights
+        for block in block_logs:
+            iterations = block.get('iterations', [])
+            for iteration in iterations:
+                row_diagnostics = iteration.get('row_diagnostics', [])
+                
+                for diag in row_diagnostics:
+                    action = diag.get('decision', 'retained').lower()
+                    if action in action_summary:
+                        action_summary[action] += 1
+                    
+                    # Collect flagged/problematic rows
+                    if action in ['down-weighted', 'flagged']:
+                        row_info = {
+                            'row_id': diag.get('row_id', 'N/A'),
+                            'action': action,
+                            'v_q': diag.get('v_q_score', 0.0),
+                            'v_b': diag.get('v_b_score', 0.0),
+                            'v_l': diag.get('v_l_score', 0.0),
+                            'is_outlier': diag.get('is_outlier', False)
+                        }
+                        all_flagged_rows.append(row_info)
+                
+                # Process logic failures for column insights
+                logic_failures = iteration.get('logic_failures', [])
+                for failure in logic_failures:
+                    feature = failure.get('feature', 'unknown')
+                    if feature not in column_issues:
+                        column_issues[feature] = []
+                    column_issues[feature].append({
+                        'row_id': failure.get('row_id', 'N/A'),
+                        'rule': failure.get('rule', 'N/A'),
+                        'action': failure.get('action', 'N/A')
+                    })
+        
+        # 📊 SUMMARY DASHBOARD
+        st.subheader("📊 Dataset Quality Summary")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total_processed = sum(action_summary.values())
+            st.metric("Total Rows Processed", total_processed)
+        
+        with col2:
+            flagged_count = action_summary['flagged'] + action_summary['down-weighted']
+            quality_score = ((total_processed - flagged_count) / total_processed * 100) if total_processed > 0 else 100
+            st.metric("Dataset Quality Score", f"{quality_score:.1f}%", delta=f"{flagged_count} issues found")
+        
+        with col3:
+            st.metric("🚩 Flagged Rows", action_summary['flagged'])
+        
+        with col4:
+            st.metric("⚖️ Down-weighted Rows", action_summary['down-weighted'])
+        
+        # 🔍 PROBLEMATIC ROWS TABLE
+        if all_flagged_rows:
+            st.subheader("🔍 Rows Requiring Attention")
+            
+            # Create enhanced dataframe with recommendations
+            enhanced_rows = []
+            for row in all_flagged_rows[:50]:  # Show top 50 problematic rows
+                issues = []
+                recommendations = []
+                
+                # Analyze what's wrong and recommend fixes
+                if row['v_q'] < 0.3:
+                    issues.append("Low Pattern Score")
+                    recommendations.append("Check for data inconsistencies")
+                
+                if row['v_b'] < 0.3:
+                    issues.append("Low Presence Score")
+                    recommendations.append("Verify data completeness")
+                
+                if row['v_l'] < 0.3:
+                    issues.append("Logic Rule Failed")
+                    recommendations.append("Review business logic compliance")
+                
+                if row['is_outlier']:
+                    issues.append("Statistical Outlier")
+                    recommendations.append("Investigate unusual values")
+                
+                enhanced_rows.append({
+                    'Row ID': row['row_id'],
+                    'Action Taken': f"🚩 {row['action'].title()}",
+                    'Issues Found': " | ".join(issues) if issues else "Multiple factors",
+                    'Recommended Action': " + ".join(recommendations) if recommendations else "Manual review needed",
+                    'Pattern Score': f"{row['v_q']:.3f}",
+                    'Presence Score': f"{row['v_b']:.3f}",
+                    'Logic Score': f"{row['v_l']:.3f}"
+                })
+            
+            if enhanced_rows:
+                df_enhanced = pd.DataFrame(enhanced_rows)
+                st.dataframe(df_enhanced, use_container_width=True)
+                
+                if len(all_flagged_rows) > 50:
+                    st.caption(f"Showing top 50 of {len(all_flagged_rows)} flagged rows. Focus on these first for maximum impact.")
+        
+        # 📈 COLUMN-SPECIFIC INSIGHTS
+        if column_issues:
+            st.subheader("📈 Column-Specific Issues & Fixes")
+            
+            # Sort columns by number of issues
+            sorted_columns = sorted(column_issues.items(), key=lambda x: len(x[1]), reverse=True)
+            
+            for column_name, issues in sorted_columns[:10]:  # Show top 10 problematic columns
+                issue_count = len(issues)
+                
+                with st.expander(f"🔧 {column_name} - {issue_count} issues detected"):
+                    
+                    # Column summary
+                    st.markdown(f"**📊 {column_name} Analysis:**")
+                    st.markdown(f"- **Issues Found:** {issue_count} rows failed validation")
+                    
+                    # Sample of specific issues
+                    st.markdown("**🔍 Sample Issues:**")
+                    for issue in issues[:5]:  # Show first 5 issues
+                        st.markdown(f"  - Row {issue['row_id']}: {issue['rule']} → {issue['action']}")
+                    
+                    if len(issues) > 5:
+                        st.caption(f"... and {len(issues) - 5} more issues")
+                    
+                    # Specific recommendations based on column name and issues
+                    recommendations = self.generate_column_recommendations(column_name, issues)
+                    
+                    st.markdown("**💡 Recommended Actions:**")
+                    for rec in recommendations:
+                        st.markdown(f"  ✅ {rec}")
+        
+        # 🎯 OVERALL RECOMMENDATIONS
+        st.subheader("🎯 Priority Actions for Dataset Improvement")
+        
+        if total_processed > 0:
+            priority_actions = []
+            
+            if quality_score < 90:
+                priority_actions.append("🔥 **High Priority**: Dataset quality below 90% - immediate attention needed")
+            
+            if action_summary['flagged'] > total_processed * 0.1:
+                priority_actions.append("⚠️ **Medium Priority**: More than 10% of rows flagged - review data collection process")
+            
+            if len(column_issues) > 0:
+                worst_column = max(column_issues.items(), key=lambda x: len(x[1]))
+                priority_actions.append(f"🔧 **Focus Area**: Column '{worst_column[0]}' has {len(worst_column[1])} issues - start here")
+            
+            if not priority_actions:
+                priority_actions.append("✅ **Excellent**: Your dataset quality is very good! Minor optimizations possible.")
+            
+            for action in priority_actions:
+                st.markdown(action)
+        
+        # 📋 EXPORT FUNCTIONALITY
+        if all_flagged_rows or column_issues:
+            st.subheader("📋 Export Detailed Report")
+            
+            if st.button("📊 Generate Detailed Quality Report"):
+                report = self.generate_quality_report(all_flagged_rows, column_issues, action_summary)
+                st.download_button(
+                    label="💾 Download Quality Report (CSV)",
+                    data=report,
+                    file_name=f"sree_quality_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+    
+    def generate_column_recommendations(self, column_name: str, issues: List[Dict]) -> List[str]:
+        """Generate specific recommendations for column issues."""
+        recommendations = []
+        
+        # Analyze column name for context
+        column_lower = column_name.lower()
+        
+        if 'age' in column_lower:
+            recommendations.extend([
+                "Verify age values are reasonable (0-120 years)",
+                "Check for negative ages or impossible values",
+                "Consider if missing ages should be imputed"
+            ])
+        elif 'cholesterol' in column_lower or 'chol' in column_lower:
+            recommendations.extend([
+                "Normal range: 125-200 mg/dL, verify extreme values",
+                "Check measurement units (mg/dL vs mmol/L)",
+                "Investigate zero values - likely missing data"
+            ])
+        elif 'pressure' in column_lower or 'bp' in column_lower:
+            recommendations.extend([
+                "Systolic: 90-180 mmHg, Diastolic: 60-120 mmHg",
+                "Check for swapped systolic/diastolic values",
+                "Verify measurement conditions (resting vs active)"
+            ])
+        elif 'glucose' in column_lower or 'sugar' in column_lower:
+            recommendations.extend([
+                "Fasting: 70-100 mg/dL, Random: <140 mg/dL",
+                "Specify fasting vs random measurement",
+                "Check for unit consistency"
+            ])
+        else:
+            # Generic recommendations
+            recommendations.extend([
+                "Review data collection procedures for this field",
+                "Check for outliers and validate extreme values",
+                "Ensure consistent data entry standards"
+            ])
+        
+        # Add issue-specific recommendations
+        issue_count = len(issues)
+        if issue_count > 10:
+            recommendations.append(f"HIGH PRIORITY: {issue_count} issues suggest systematic data quality problems")
+        
+        return recommendations[:4]  # Limit to 4 most relevant recommendations
+    
+    def generate_quality_report(self, flagged_rows: List[Dict], column_issues: Dict, action_summary: Dict) -> str:
+        """Generate a detailed CSV report for export."""
+        import io
+        
+        output = io.StringIO()
+        
+        # Write summary
+        output.write("SREE Dataset Quality Report\n")
+        output.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        
+        # Write action summary
+        output.write("ACTION SUMMARY\n")
+        output.write("Action,Count\n")
+        for action, count in action_summary.items():
+            output.write(f"{action},{count}\n")
+        output.write("\n")
+        
+        # Write flagged rows
+        output.write("FLAGGED ROWS DETAIL\n")
+        output.write("Row ID,Action,Pattern Score,Presence Score,Logic Score,Is Outlier\n")
+        for row in flagged_rows:
+            output.write(f"{row['row_id']},{row['action']},{row['v_q']:.3f},{row['v_b']:.3f},{row['v_l']:.3f},{row['is_outlier']}\n")
+        
+        output.write("\n")
+        
+        # Write column issues
+        output.write("COLUMN ISSUES SUMMARY\n")
+        output.write("Column,Issue Count,Sample Issues\n")
+        for column, issues in column_issues.items():
+            sample_issues = "; ".join([f"Row {issue['row_id']}: {issue['rule']}" for issue in issues[:3]])
+            output.write(f"{column},{len(issues)},\"{sample_issues}\"\n")
+        
+        return output.getvalue()
 
 
 
