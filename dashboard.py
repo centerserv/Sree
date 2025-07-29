@@ -546,6 +546,50 @@ class SREEDashboard:
                     )
                 
                 if target_column and feature_columns:
+                    st.subheader("Industry Configuration")
+                    
+                    # Industry selection
+                    from config import INDUSTRY_SPECIFIC_CONFIG
+                    
+                    industry_options = {config["name"]: key for key, config in INDUSTRY_SPECIFIC_CONFIG.items()}
+                    selected_industry_name = st.selectbox(
+                        "Select your industry/sector:",
+                        list(industry_options.keys()),
+                        index=0,  # Default to health
+                        help="Choose the industry that best matches your use case for appropriate thresholds"
+                    )
+                    
+                    selected_industry = industry_options[selected_industry_name]
+                    industry_config = INDUSTRY_SPECIFIC_CONFIG[selected_industry]
+                    
+                    # Display industry-specific thresholds
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric(
+                            "Accuracy Target", 
+                            f"≥{industry_config['accuracy_threshold']:.1%}",
+                            help="Minimum accuracy required for this industry"
+                        )
+                    with col2:
+                        st.metric(
+                            "Trust Target", 
+                            f"≥{industry_config['trust_threshold']:.1%}",
+                            help="Minimum trust score required for this industry"
+                        )
+                    with col3:
+                        st.metric(
+                            "Entropy Target", 
+                            f"≤{industry_config['entropy_threshold']:.1f}",
+                            help="Maximum entropy allowed for this industry"
+                        )
+                    
+                    # Show industry description
+                    st.info(f"**{industry_config['name']}**: {industry_config['description']}")
+                    
+                    # Save industry selection to session state
+                    st.session_state.selected_industry = selected_industry
+                    st.session_state.industry_config = industry_config
+                    
                     st.subheader("Data Analysis")
                     
                     # Prepare data
@@ -584,10 +628,21 @@ class SREEDashboard:
     def run_sree_analysis(self, X: np.ndarray, y: np.ndarray) -> dict:
         """Run SREE analysis on uploaded data using the centralized logic."""
         try:
+            # Add verbose logging
+            print(f"🚀 [SREE] Starting analysis at {datetime.now().strftime('%H:%M:%S')}")
+            print(f"📊 [SREE] Dataset shape: {X.shape}, Target classes: {len(np.unique(y))}")
+            
+            # Get industry configuration
+            industry_config = st.session_state.get('industry_config', {})
+            if industry_config:
+                print(f"🎯 [SREE] Industry: {industry_config.get('name', 'Unknown')}")
+                print(f"📈 [SREE] Thresholds - Accuracy: ≥{industry_config.get('accuracy_threshold', 0.95):.3f}, Trust: ≥{industry_config.get('trust_threshold', 0.85):.3f}, Entropy: ≤{industry_config.get('entropy_threshold', 1.5):.3f}")
+            
             # Set deterministic random seeds for consistent results
             np.random.seed(42)
             import random
             random.seed(42)
+            print(f"🎲 [SREE] Random seeds set for reproducibility")
             
             # Ensure y is properly formatted for binary classification
             y = y.astype(int)
@@ -602,13 +657,33 @@ class SREEDashboard:
                     f"not a feature column like 'age'."
                 )
             
-            # Use the Unified Block Creation system
+            # Use the Unified Block Creation system with industry-specific parameters
+            print(f"🔄 [SREE] Starting unified block creation...")
             from unified_block_creation import run_unified_block_creation
-            results = run_unified_block_creation(X, y, dataset_name="custom")
+            
+            # Use industry-specific parameters if available
+            if industry_config:
+                results = run_unified_block_creation(
+                    X, y, 
+                    accuracy_threshold=industry_config.get('accuracy_threshold', 0.95),
+                    trust_threshold=industry_config.get('trust_threshold', 0.85),
+                    entropy_threshold=industry_config.get('entropy_threshold', 1.5),
+                    max_blocks=industry_config.get('max_blocks', 25),
+                    required_consecutive_ok=industry_config.get('consecutive_blocks_required', 2),
+                    dataset_name=f"custom_{industry_config.get('name', 'general').lower().replace(' ', '_')}"
+                )
+            else:
+                # Fallback to default parameters
+                results = run_unified_block_creation(X, y, dataset_name="custom")
+            
+            print(f"✅ [SREE] Unified block creation completed")
+            print(f"📊 [SREE] Final metrics - Accuracy: {results.get('accuracy', 0.0):.3f}, Trust: {results.get('trust_score', 0.0):.3f}, Entropy: {results.get('entropy', 0.0):.3f}")
+            print(f"🧱 [SREE] Total blocks created: {results.get('block_count', 0)}")
             
             return results
             
         except Exception as e:
+            print(f"❌ [SREE] Error in analysis: {str(e)}")
             self.logger.error(f"Error in SREE analysis: {str(e)}")
             return {
                 'accuracy': 0.0,
@@ -626,38 +701,59 @@ class SREEDashboard:
             st.error(f"Analysis failed: {results['error']}")
             return
         
-        # Key metrics
+        # Get industry configuration for comparison
+        industry_config = st.session_state.get('industry_config', {})
+        
+        # Key metrics with industry-specific thresholds
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             accuracy = results.get('accuracy', 0.0)
-            accuracy_ok = results.get('accuracy_ok', False)
+            accuracy_threshold = industry_config.get('accuracy_threshold', 0.95) if industry_config else 0.95
+            # Round to 3 decimal places for comparison (matching display precision)
+            accuracy_rounded = round(accuracy, 3)
+            accuracy_threshold_rounded = round(accuracy_threshold, 3)
+            accuracy_ok = accuracy_rounded >= accuracy_threshold_rounded
             st.metric(
                 label="Accuracy",
                 value=f"{accuracy:.3f}",
-                delta=f"{accuracy - 0.95:.3f}" if accuracy > 0.95 else f"{accuracy - 0.95:.3f}",
+                delta=f"{accuracy - accuracy_threshold:.3f}" if accuracy > accuracy_threshold else f"{accuracy - accuracy_threshold:.3f}",
                 delta_color="normal" if accuracy_ok else "inverse"
             )
+            if industry_config:
+                st.caption(f"Target: ≥{accuracy_threshold:.1%}")
         
         with col2:
             trust = results.get('trust_score', 0.0)
-            trust_ok = results.get('trust_ok', False)
+            trust_threshold = industry_config.get('trust_threshold', 0.85) if industry_config else 0.85
+            # Round to 3 decimal places for comparison (matching display precision)
+            trust_rounded = round(trust, 3)
+            trust_threshold_rounded = round(trust_threshold, 3)
+            trust_ok = trust_rounded >= trust_threshold_rounded
             st.metric(
                 label="Trust Score",
                 value=f"{trust:.3f}",
-                delta=f"{trust - 0.85:.3f}" if trust > 0.85 else f"{trust - 0.85:.3f}",
+                delta=f"{trust - trust_threshold:.3f}" if trust > trust_threshold else f"{trust - trust_threshold:.3f}",
                 delta_color="normal" if trust_ok else "inverse"
             )
+            if industry_config:
+                st.caption(f"Target: ≥{trust_threshold:.1%}")
         
         with col3:
             entropy = results.get('entropy', 0.0)
-            entropy_ok = results.get('entropy_ok', False)
+            entropy_threshold = industry_config.get('entropy_threshold', 1.5) if industry_config else 1.5
+            # Round to 3 decimal places for comparison (matching display precision)
+            entropy_rounded = round(entropy, 3)
+            entropy_threshold_rounded = round(entropy_threshold, 3)
+            entropy_ok = entropy_rounded <= entropy_threshold_rounded
             st.metric(
                 label="Entropy",
                 value=f"{entropy:.3f}",
-                delta=f"{1.5 - entropy:.3f}" if entropy <= 1.5 else f"{entropy - 1.5:.3f}",
+                delta=f"{entropy_threshold - entropy:.3f}" if entropy <= entropy_threshold else f"{entropy - entropy_threshold:.3f}",
                 delta_color="normal" if entropy_ok else "inverse"
             )
+            if industry_config:
+                st.caption(f"Target: ≤{entropy_threshold:.1f}")
         
         with col4:
             block_count = results.get('block_count', 0)
@@ -666,6 +762,120 @@ class SREEDashboard:
                 value=f"{block_count}",
                 delta="✅ OK" if block_count > 0 else "❌ = 0"
             )
+        
+        # Industry summary
+        if industry_config:
+            st.subheader("🎯 Industry Analysis Summary")
+            
+            # Check if all metrics meet industry requirements
+            all_requirements_met = accuracy_ok and trust_ok and entropy_ok
+            
+
+            
+            # Get raw metrics if available
+            raw_accuracy = results.get('raw_metrics', {}).get('accuracy', accuracy)
+            raw_trust = results.get('raw_metrics', {}).get('trust_score', trust)
+            raw_entropy = results.get('raw_metrics', {}).get('entropy', entropy)
+            adjustments_applied = results.get('adjustments_applied', {})
+            
+            # Get adaptive evaluation results
+            adaptive_eval = results.get('adaptive_evaluation', {})
+            
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.markdown(f"""
+                **Industry**: {industry_config.get('name', 'Unknown')}  
+                **Description**: {industry_config.get('description', 'No description available')}
+                
+                **Requirements Status**:
+                - ✅ Accuracy ≥ {accuracy_threshold:.1%}: {'✅ PASS' if accuracy_ok else '❌ FAIL'} ({accuracy:.1%})
+                - ✅ Trust ≥ {trust_threshold:.1%}: {'✅ PASS' if trust_ok else '❌ FAIL'} ({trust:.1%})
+                - ✅ Entropy ≤ {entropy_threshold:.1f}: {'✅ PASS' if entropy_ok else '❌ FAIL'} ({entropy:.1f})
+                
+                **Raw vs Adjusted Values**:
+                - 📊 Accuracy: {raw_accuracy:.1%} → {accuracy:.1%} {'🔧' if adjustments_applied.get('accuracy_adjusted', False) else '✅'}
+                - 📊 Trust: {raw_trust:.1%} → {trust:.1%} {'🔧' if adjustments_applied.get('trust_adjusted', False) else '✅'}
+                - 📊 Entropy: {raw_entropy:.1f} → {entropy:.1f} {'🔧' if adjustments_applied.get('entropy_adjusted', False) else '✅'}
+                """)
+            
+            with col2:
+                if all_requirements_met:
+                    st.success("🎉 **All Industry Requirements Met!**")
+                    st.balloons()
+                else:
+                    st.warning("⚠️ **Some Requirements Not Met**")
+                    failed_requirements = []
+                    if not accuracy_ok:
+                        failed_requirements.append(f"Accuracy ({accuracy:.1%} < {accuracy_threshold:.1%})")
+                    if not trust_ok:
+                        failed_requirements.append(f"Trust ({trust:.1%} < {trust_threshold:.1%})")
+                    if not entropy_ok:
+                        failed_requirements.append(f"Entropy ({entropy:.1f} > {entropy_threshold:.1f})")
+                    
+                    st.error(f"Failed: {', '.join(failed_requirements)}")
+        
+        # Adaptive Evaluation Section
+        if adaptive_eval:
+            st.subheader("🔍 Adaptive Evaluation Results")
+            
+            # Display overall score and status
+            final_score = adaptive_eval.get('final_score', 0.0)
+            overall_status = adaptive_eval.get('status', 'unknown')
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric(
+                    "Adaptive Score",
+                    f"{final_score:.3f}",
+                    help="Weighted score based on all metrics"
+                )
+            
+            with col2:
+                status_color = {
+                    'excellent': 'success',
+                    'acceptable': 'warning',
+                    'fail': 'error'
+                }.get(overall_status, 'info')
+                
+                st.metric(
+                    "Overall Status",
+                    overall_status.upper(),
+                    help="Overall evaluation status"
+                )
+            
+            with col3:
+                auto_refinement = adaptive_eval.get('auto_refinement_triggered', False)
+                st.metric(
+                    "Auto-Refinement",
+                    "🔧 TRIGGERED" if auto_refinement else "✅ NOT NEEDED",
+                    help="Whether automatic refinement was triggered"
+                )
+            
+            # Display metric breakdown
+            breakdown = adaptive_eval.get('breakdown', [])
+            if breakdown:
+                st.subheader("📊 Metric Breakdown")
+                
+                for metric in breakdown:
+                    metric_name = metric.get('metric', 'unknown')
+                    metric_value = metric.get('value', 0.0)
+                    metric_threshold = metric.get('threshold', 0.0)
+                    metric_status = metric.get('status', 'unknown')
+                    metric_reason = metric.get('reason', 'No reason provided')
+                    
+                    # Create status icon
+                    status_icon = {
+                        'pass': '✅',
+                        'warn': '⚠️',
+                        'fail': '❌'
+                    }.get(metric_status, '❓')
+                    
+                    # Display metric
+                    st.markdown(f"""
+                    **{status_icon} {metric_name.title()}**: {metric_value:.3f} (Target: {metric_threshold:.3f})
+                    - **Status**: {metric_status.upper()}
+                    - **Reason**: {metric_reason}
+                    """)
         
         # Detailed results
         st.subheader("Detailed Analysis")

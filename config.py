@@ -195,6 +195,112 @@ TARGET_METRICS = {
     }
 }
 
+# Industry/Sector specific configurations
+INDUSTRY_SPECIFIC_CONFIG = {
+    "health": {
+        "name": "Health / Medical AI",
+        "description": "Healthcare and medical applications",
+        "accuracy_threshold": 0.98,  # High accuracy required for medical decisions
+        "trust_threshold": 0.90,     # High trust for patient safety
+        "entropy_threshold": 1.2,    # Low entropy for consistent predictions
+        "max_blocks": 25,
+        "consecutive_blocks_required": 2,
+        "weights": {
+            "accuracy": 0.45,  # Higher weight for medical accuracy
+            "trust": 0.35,     # High weight for patient safety
+            "entropy": 0.15,   # Lower weight but still important
+            "block_count": 0.05 # Minimal weight for efficiency
+        },
+        "auto_refinement": True  # Enable auto-refinement for medical applications
+    },
+    "finance": {
+        "name": "Financial Services",
+        "description": "Banking, insurance, and financial applications",
+        "accuracy_threshold": 0.95,  # High accuracy for financial decisions
+        "trust_threshold": 0.88,     # High trust for compliance
+        "entropy_threshold": 1.5,    # Moderate entropy tolerance
+        "max_blocks": 20,
+        "consecutive_blocks_required": 2,
+        "weights": {
+            "accuracy": 0.40,  # High weight for financial accuracy
+            "trust": 0.40,     # Equal weight for compliance
+            "entropy": 0.15,   # Moderate weight for consistency
+            "block_count": 0.05 # Minimal weight for efficiency
+        },
+        "auto_refinement": True  # Enable auto-refinement for financial applications
+    },
+    "industrial": {
+        "name": "Industrial / Manufacturing",
+        "description": "Manufacturing and industrial applications",
+        "accuracy_threshold": 0.92,  # Good accuracy for quality control
+        "trust_threshold": 0.85,     # Reliable trust for production
+        "entropy_threshold": 1.8,    # Higher entropy tolerance
+        "max_blocks": 15,
+        "consecutive_blocks_required": 2,
+        "weights": {
+            "accuracy": 0.35,  # Good weight for quality control
+            "trust": 0.30,     # Moderate weight for reliability
+            "entropy": 0.20,   # Higher weight for flexibility
+            "block_count": 0.15 # Higher weight for efficiency
+        },
+        "auto_refinement": False  # Disable auto-refinement for industrial applications
+    },
+    "cybersecurity": {
+        "name": "Cybersecurity",
+        "description": "Security and threat detection applications",
+        "accuracy_threshold": 0.96,  # Very high accuracy for security
+        "trust_threshold": 0.92,     # Very high trust for security
+        "entropy_threshold": 1.0,    # Very low entropy for precise detection
+        "max_blocks": 30,
+        "consecutive_blocks_required": 3,
+        "weights": {
+            "accuracy": 0.50,  # Highest weight for security accuracy
+            "trust": 0.35,     # High weight for security trust
+            "entropy": 0.10,   # Low weight but critical for precision
+            "block_count": 0.05 # Minimal weight for efficiency
+        },
+        "auto_refinement": True  # Enable auto-refinement for security applications
+    },
+    "general": {
+        "name": "General Purpose",
+        "description": "General business and commercial applications",
+        "accuracy_threshold": 0.90,  # Standard accuracy
+        "trust_threshold": 0.82,     # Standard trust
+        "entropy_threshold": 2.0,    # Standard entropy tolerance
+        "max_blocks": 10,
+        "consecutive_blocks_required": 2,
+        "weights": {
+            "accuracy": 0.40,  # Standard weight for accuracy
+            "trust": 0.30,     # Standard weight for trust
+            "entropy": 0.20,   # Standard weight for flexibility
+            "block_count": 0.10 # Standard weight for efficiency
+        },
+        "auto_refinement": False  # Disable auto-refinement for general applications
+    }
+}
+
+# Adaptive threshold evaluation configuration
+ADAPTIVE_EVALUATION_CONFIG = {
+    "enabled": True,
+    "auto_refinement": True,
+    "score_thresholds": {
+        "excellent": 0.85,
+        "acceptable": 0.70,
+        "fail": 0.70
+    },
+    "soft_zones": {
+        "accuracy_warning_zone": 0.95,  # 95% of threshold
+        "trust_warning_zone": 0.95,     # 95% of threshold
+        "entropy_warning_zone": 1.25,   # 125% of threshold
+        "block_count_efficient": 0.8    # 80% of max blocks
+    },
+    "logging": {
+        "save_evaluations": True,
+        "log_level": "INFO",
+        "output_format": "json"
+    }
+}
+
 # Phase 1 implementation details
 PHASE1_CONFIG = {
     "implementation": {
