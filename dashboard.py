@@ -832,10 +832,14 @@ class SREEDashboard:
 
             
             # Get raw metrics if available
-            raw_accuracy = results.get('raw_metrics', {}).get('accuracy', accuracy)
-            raw_trust = results.get('raw_metrics', {}).get('trust_score', trust)
-            raw_entropy = results.get('raw_metrics', {}).get('entropy', entropy)
-            adjustments_applied = results.get('adjustments_applied', {})
+            raw_metrics = results.get('raw_metrics', {})
+            raw_accuracy = raw_metrics.get('raw_accuracy', accuracy) if isinstance(raw_metrics, dict) else accuracy
+            raw_trust = raw_metrics.get('raw_trust', trust) if isinstance(raw_metrics, dict) else trust
+            raw_entropy = raw_metrics.get('raw_entropy', entropy) if isinstance(raw_metrics, dict) else entropy
+            
+            # Handle adjustments_applied which can be bool or dict
+            adjustments_data = results.get('adjustments_applied', False)
+            adjustments_applied = adjustments_data if isinstance(adjustments_data, dict) else {}
             
             # Get adaptive evaluation results
             adaptive_eval = results.get('adaptive_evaluation', {})
