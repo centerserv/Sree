@@ -372,7 +372,7 @@ class SREEDashboard:
         
         with col2:
             st.subheader("Data Flow")
-            st.image("plots/fig1.png", caption="PPP Diagram", use_container_width=True)
+            st.image("plots/fig1.png", caption="PPP Diagram")
     
     def create_test_results(self):
         """Shows test results."""
@@ -454,7 +454,7 @@ class SREEDashboard:
                     # Always show preview image if available
                     preview_path = self.plots_dir / 'fig4_preview.png'
                     if preview_path.exists():
-                        st.image(str(preview_path), caption="Preview: Phase 1 vs. Baselines", use_container_width=True)
+                        st.image(str(preview_path), caption="Preview: Phase 1 vs. Baselines")
                     # Show download button for PDF
                     with open(file_path, "rb") as f:
                         pdf_bytes = f.read()
@@ -467,8 +467,7 @@ class SREEDashboard:
                 else:
                     st.image(
                         str(file_path),
-                        caption=figures[selected_figure],
-                        use_container_width=True
+                        caption=figures[selected_figure]
                     )
             else:
                 st.warning("Figure not found. Run `python3 visualization.py` first.")
@@ -2700,7 +2699,7 @@ class SREEDashboard:
         if "weight_visualization" in tracking_logs and tracking_logs["weight_visualization"]:
             st.write("**Weight Evolution Visualization:**")
             try:
-                st.image(tracking_logs["weight_visualization"], caption="Feature Weight Evolution", use_container_width=True)
+                st.image(tracking_logs["weight_visualization"], caption="Feature Weight Evolution")
             except Exception as e:
                 st.error(f"Error loading weight visualization: {str(e)}")
         
@@ -2708,7 +2707,7 @@ class SREEDashboard:
         if "feature_visualization" in tracking_logs and tracking_logs["feature_visualization"]:
             st.write("**Feature Analysis Visualization:**")
             try:
-                st.image(tracking_logs["feature_visualization"], caption="Feature Analysis Overview", use_container_width=True)
+                st.image(tracking_logs["feature_visualization"], caption="Feature Analysis Overview")
             except Exception as e:
                 st.error(f"Error loading feature visualization: {str(e)}")
         
@@ -2716,7 +2715,7 @@ class SREEDashboard:
         if "column_visualization" in tracking_logs and tracking_logs["column_visualization"]:
             st.write("**Column History Visualization:**")
             try:
-                st.image(tracking_logs["column_visualization"], caption="Column Revaluation History", use_container_width=True)
+                st.image(tracking_logs["column_visualization"], caption="Column Revaluation History")
             except Exception as e:
                 st.error(f"Error loading column visualization: {str(e)}")
     
