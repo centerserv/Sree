@@ -351,11 +351,27 @@ start_dashboard() {
     
     # Check Streamlit installation
     print_info "Checking Streamlit installation..."
-    if python3 -c "import streamlit" 2>/dev/null; then
-        print_status "Streamlit is installed"
+    
+    # Check if we have a virtual environment and use it
+    if [ -d "venv" ]; then
+        print_info "Virtual environment found. Activating..."
+        source venv/bin/activate
+        if python3 -c "import streamlit" 2>/dev/null; then
+            print_status "Streamlit is installed in virtual environment"
+        else
+            print_warning "Streamlit not found in virtual environment. Installing..."
+            pip install streamlit
+        fi
     else
-        print_warning "Streamlit not found. Installing..."
-        pip3 install streamlit
+        # Fallback to system Python with virtual environment creation
+        if python3 -c "import streamlit" 2>/dev/null; then
+            print_status "Streamlit is installed"
+        else
+            print_warning "Streamlit not found. Creating virtual environment and installing..."
+            python3 -m venv venv
+            source venv/bin/activate
+            pip install -r requirements.txt
+        fi
     fi
     
     echo ""
@@ -383,22 +399,40 @@ start_dashboard() {
     export STREAMLIT_LOGGER_LEVEL=debug
     export STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
     
-             # Start streamlit with verbose options
-             streamlit run dashboard.py \
-                 --server.port 8501 \
-                 --server.address localhost \
-                 --server.headless false \
-                 --server.runOnSave true \
-                 --server.fileWatcherType poll \
-                 --logger.level debug \
-                 --browser.gatherUsageStats false \
-                 --global.showWarningOnDirectExecution true \
-                 --theme.base light \
-                 --theme.primaryColor "#FF4B4B" \
-                 --theme.backgroundColor "#FFFFFF" \
-                 --theme.secondaryBackgroundColor "#F0F2F6" \
-                 --theme.textColor "#262730" \
-                 --theme.font sans
+             # Start streamlit with verbose options (using virtual environment if available)
+             if [ -d "venv" ]; then
+                 venv/bin/streamlit run dashboard.py \
+                     --server.port 8501 \
+                     --server.address localhost \
+                     --server.headless false \
+                     --server.runOnSave true \
+                     --server.fileWatcherType poll \
+                     --logger.level debug \
+                     --browser.gatherUsageStats false \
+                     --global.showWarningOnDirectExecution true \
+                     --theme.base light \
+                     --theme.primaryColor "#FF4B4B" \
+                     --theme.backgroundColor "#FFFFFF" \
+                     --theme.secondaryBackgroundColor "#F0F2F6" \
+                     --theme.textColor "#262730" \
+                     --theme.font sans
+             else
+                 streamlit run dashboard.py \
+                     --server.port 8501 \
+                     --server.address localhost \
+                     --server.headless false \
+                     --server.runOnSave true \
+                     --server.fileWatcherType poll \
+                     --logger.level debug \
+                     --browser.gatherUsageStats false \
+                     --global.showWarningOnDirectExecution true \
+                     --theme.base light \
+                     --theme.primaryColor "#FF4B4B" \
+                     --theme.backgroundColor "#FFFFFF" \
+                     --theme.secondaryBackgroundColor "#F0F2F6" \
+                     --theme.textColor "#262730" \
+                     --theme.font sans
+             fi
 }
 
 # Function to update server
