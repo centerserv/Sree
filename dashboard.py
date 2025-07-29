@@ -26,13 +26,12 @@ import traceback
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from config import PPP_CONFIG, DASHBOARD_PPP_CONFIG
+from config import PPP_CONFIG, DASHBOARD_PPP_CONFIG, setup_logging
 from data_loader import DataLoader
 from layers.pattern import PatternValidator
 from layers.presence import PresenceValidator
 from layers.permanence import PermanenceValidator
 from layers.logic import LogicValidator
-from visualization import setup_logging
 
 # Import advanced tracking components
 try:
