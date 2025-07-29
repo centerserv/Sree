@@ -32,6 +32,7 @@ from layers.pattern import PatternValidator
 from layers.presence import PresenceValidator
 from layers.permanence import PermanenceValidator
 from layers.logic import LogicValidator
+from loop.trust_loop import TrustUpdateLoop
 
 # Import advanced tracking components
 try:
