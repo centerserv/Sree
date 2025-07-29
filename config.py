@@ -147,7 +147,9 @@ PPP_CONFIG = {
         "min_conditions": 3,         # Minimum logical conditions
         "max_rules": 15,             # Maximum logical rules
         "confidence_threshold": 0.85, # Higher confidence threshold
-        "support_threshold": 0.15    # Lower support threshold for more rules
+        "support_threshold": 0.15,   # Lower support threshold for more rules
+        "consistency_weight": 0.7,   # Higher weight for consistency validation
+        "max_inconsistencies": 0.20  # Fewer allowed inconsistencies
     }
 }
 
@@ -178,7 +180,9 @@ DASHBOARD_PPP_CONFIG = {
         "min_conditions": 2,         # Reduced for speed
         "max_rules": 10,             # Reduced for speed
         "confidence_threshold": 0.80, # Slightly lower for speed
-        "support_threshold": 0.20    # Higher for fewer rules
+        "support_threshold": 0.20,   # Higher for fewer rules
+        "consistency_weight": 0.6,   # Lower weight for speed
+        "max_inconsistencies": 0.25  # More tolerant for speed
     }
 }
 
