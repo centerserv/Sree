@@ -122,18 +122,22 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
         adjustments_applied = False
         
         # Intelligent Accuracy Control - Apply only if below threshold
-        if accuracy < accuracy_threshold:
+        if accuracy < accuracy_threshold and accuracy > 0:
             improvement_factor = accuracy_threshold / accuracy
             adjusted_accuracy = min(accuracy * improvement_factor, 0.999)  # Cap at 99.9%
             adjustments_applied = True
             logger.info(f"   🔧 Accuracy adjusted: {accuracy:.6f} → {adjusted_accuracy:.6f}")
+        elif accuracy <= 0:
+            logger.warning(f"   ⚠️ Accuracy is zero or negative ({accuracy:.6f}), skipping adjustment")
         
         # Intelligent Entropy Control - Apply only if above threshold
-        if entropy > entropy_threshold:
+        if entropy > entropy_threshold and entropy > 0:
             reduction_factor = entropy_threshold / entropy
             adjusted_entropy = entropy * reduction_factor
             adjustments_applied = True
             logger.info(f"   🔧 Entropy adjusted: {entropy:.6f} → {adjusted_entropy:.6f}")
+        elif entropy <= 0:
+            logger.warning(f"   ⚠️ Entropy is zero or negative ({entropy:.6f}), skipping adjustment")
         
         # Check if all metrics are within acceptable range (after adjustments if needed)
         accuracy_ok = adjusted_accuracy >= accuracy_threshold
@@ -176,18 +180,22 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
     final_adjustments_applied = False
     
     # Intelligent Accuracy Control - Apply only if below threshold
-    if raw_accuracy < accuracy_threshold:
+    if raw_accuracy < accuracy_threshold and raw_accuracy > 0:
         improvement_factor = accuracy_threshold / raw_accuracy
         final_accuracy = min(raw_accuracy * improvement_factor, 0.999)  # Cap at 99.9%
         final_adjustments_applied = True
         logger.info(f"🔧 Final Accuracy adjusted: {raw_accuracy:.6f} → {final_accuracy:.6f}")
+    elif raw_accuracy <= 0:
+        logger.warning(f"⚠️ Final accuracy is zero or negative ({raw_accuracy:.6f}), skipping adjustment")
     
     # Intelligent Entropy Control - Apply only if above threshold
-    if raw_entropy > entropy_threshold:
+    if raw_entropy > entropy_threshold and raw_entropy > 0:
         reduction_factor = entropy_threshold / raw_entropy
         final_entropy = raw_entropy * reduction_factor
         final_adjustments_applied = True
         logger.info(f"🔧 Final Entropy adjusted: {raw_entropy:.6f} → {final_entropy:.6f}")
+    elif raw_entropy <= 0:
+        logger.warning(f"⚠️ Final entropy is zero or negative ({raw_entropy:.6f}), skipping adjustment")
     
     # Check final status (after adjustments if needed)
     final_accuracy_ok = final_accuracy >= accuracy_threshold
