@@ -48,6 +48,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Hide Streamlit footer and menu
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+.stDeployButton {display:none;}
+[data-testid="stToolbar"] {display: none;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 class TimingTracker:
     """Tracks execution time and provides real-time updates."""
     
@@ -560,6 +572,15 @@ class SREEDashboard:
     
     def create_csv_upload_section(self):
         """Creates CSV upload and analysis section."""
+        # Hide entire upload panel if analysis has been completed
+        if st.session_state.analysis_results is not None:
+            st.success("✅ Dataset uploaded and analyzed successfully!")
+            with st.expander("📁 Dataset Details", expanded=False):
+                if st.session_state.uploaded_df is not None:
+                    st.write(f"**Dataset Shape:** {st.session_state.uploaded_df.shape}")
+                    st.write(f"**Columns:** {', '.join(st.session_state.uploaded_df.columns[:5])}{'...' if len(st.session_state.uploaded_df.columns) > 5 else ''}")
+            return
+        
         st.header("📁 Upload Your Dataset")
         st.markdown("Upload a CSV file to analyze with SREE. The file should have features and a target column.")
         
@@ -878,11 +899,11 @@ class SREEDashboard:
                 }
             }
             
-            # Final status updates
+            # Final status update - single clean message
             if status_placeholder:
-                status_placeholder.success(f"✅ Analysis completed in {self.timing_tracker.get_formatted_total()}!")
+                status_placeholder.success(f"✅ Analysis completed successfully in {self.timing_tracker.get_formatted_total()}")
             if timing_placeholder:
-                timing_placeholder.success(f"🎉 **COMPLETED** | Total time: **{self.timing_tracker.get_formatted_total()}** | Finished at **{end_time.strftime('%H:%M:%S')}**")
+                timing_placeholder.empty()  # Remove duplicate timing message
             if progress_bar:
                 progress_bar.progress(100)
             
@@ -1707,16 +1728,7 @@ class SREEDashboard:
         st.header("📊 Results & Metrics")
         results = st.session_state.analysis_results
         
-        # Key metrics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Accuracy", f"{results.get('accuracy', 0.0):.3f}")
-        with col2:
-            st.metric("Trust Score", f"{results.get('trust_score', 0.0):.3f}")
-        with col3:
-            st.metric("Entropy", f"{results.get('entropy', 0.0):.3f}")
-        with col4:
-            st.metric("Block Count", results.get('block_count', 0))
+        # Note: Metrics are shown in the main analysis section to avoid duplication
         
         # Detailed results
         st.subheader("Detailed Analysis")
@@ -3330,10 +3342,16 @@ class SREEDashboard:
                 delta_color="normal" if entropy_ok else "inverse"
             )
         
-        # Raw vs Adjusted metrics
+        # Raw vs Adjusted metrics - only show if adjustments were actually made
         adjustments_data = results.get('adjustments_applied', {})
         adjustments = adjustments_data if isinstance(adjustments_data, dict) else {}
-        if adjustments.get('accuracy_adjusted', False) or adjustments.get('entropy_adjusted', False):
+        has_meaningful_adjustments = (
+            adjustments.get('accuracy_adjusted', False) or 
+            adjustments.get('entropy_adjusted', False) or
+            adjustments.get('trust_adjusted', False)
+        )
+        
+        if has_meaningful_adjustments:
             st.subheader("🔧 Intelligent Adjustments Applied")
             
             raw_metrics = results.get('raw_metrics', {})
