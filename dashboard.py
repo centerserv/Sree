@@ -743,8 +743,7 @@ class SREEDashboard:
                                 if execution_time:
                                     st.success(f"🎉 Analysis completed successfully in **{execution_time.get('formatted', 'Unknown')}**!")
                                 
-                                # Show immediate summary
-                                st.balloons()
+                                # Show immediate summary (balloons removed for subtlety)
                                 
                                 # Quick results preview with timing
                                 col1, col2, col3, col4, col5 = st.columns(5)
@@ -1089,7 +1088,6 @@ class SREEDashboard:
             with col2:
                 if all_requirements_met:
                     st.success("🎉 **All Industry Requirements Met!**")
-                    st.balloons()
                 else:
                     st.warning("⚠️ **Some Requirements Not Met**")
                     failed_requirements = []
