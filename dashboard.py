@@ -1064,7 +1064,145 @@ class SREEDashboard:
             st.warning("⚠️ **Needs Review**: The model shows promise but may benefit from additional training or data.")
         else:
             st.error("❌ **Needs Improvement**: The model requires significant improvements before it can be used for predictions.")
+        
+        # Add Per-Block Diagnostic Breakdown
+        st.markdown("---")
+        self.display_block_logs_inline(results)
     
+    def display_block_logs_inline(self, results: dict):
+        """Display block logs inline with the results for transparency."""
+        st.subheader("🔍 Per-Block Diagnostic Breakdown")
+        
+        st.info("""
+        **🎯 Epistemic Transparency**: This section shows exactly which rows and features were flagged, 
+        reweighted, or adjusted in each block, demonstrating how SREE self-refines its predictions.
+        """)
+        
+        # Get block logs from results
+        block_logs = results.get('block_logs', [])
+        
+        if not block_logs:
+            st.warning("""
+            ⚠️ **No detailed block logs available**
+            
+            This could be because:
+            - The analysis used optimized dashboard configuration (fewer logs for speed)
+            - Block logging was disabled
+            - Analysis completed very quickly
+            
+            💡 **To see detailed diagnostics**: Use the "🎯 Intelligent Block Control" section for full transparency.
+            """)
+            return
+        
+        # Display each block's diagnostics
+        for i, block in enumerate(block_logs):
+            block_id = block.get('block_id', i+1)
+            
+            with st.expander(f"📊 Block {block_id} - Diagnostic Details", expanded=(i == 0)):
+                # Block summary
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Samples Processed", block.get('n_samples', 'N/A'))
+                
+                with col2:
+                    st.metric("Block Status", "✅ COMPLETED" if block.get('completed', True) else "🔄 IN PROGRESS")
+                
+                with col3:
+                    accuracy = block.get('final_accuracy', 0.0)
+                    st.metric("Block Accuracy", f"{accuracy:.3f}")
+                
+                # Show iterations if available
+                iterations = block.get('iterations', [])
+                if iterations:
+                    st.subheader("🔄 Iteration Breakdown")
+                    
+                    for iter_data in iterations:
+                        iter_num = iter_data.get('iteration', 'N/A')
+                        
+                        with st.expander(f"Iteration {iter_num}"):
+                            # Summary metrics
+                            summary = iter_data.get('summary', {})
+                            
+                            if summary:
+                                col1, col2, col3, col4 = st.columns(4)
+                                
+                                with col1:
+                                    st.metric("Avg V_q", f"{summary.get('avg_v_q', 0.0):.3f}")
+                                
+                                with col2:
+                                    st.metric("Avg V_b", f"{summary.get('avg_v_b', 0.0):.3f}")
+                                
+                                with col3:
+                                    st.metric("Avg V_l", f"{summary.get('avg_v_l', 0.0):.3f}")
+                                
+                                with col4:
+                                    entropy = summary.get('avg_entropy')
+                                    st.metric("Avg Entropy", f"{entropy:.3f}" if entropy is not None else "N/A")
+                            
+                            # Row-level diagnostics
+                            row_diagnostics = iter_data.get('row_diagnostics', [])
+                            if row_diagnostics:
+                                st.subheader("📋 Row-Level Actions")
+                                
+                                # Create DataFrame for better display
+                                diagnostics_data = []
+                                for diag in row_diagnostics[:20]:  # Limit to first 20 rows
+                                    diagnostics_data.append({
+                                        'Row ID': diag.get('row_id', 'N/A'),
+                                        'V_q Score': f"{diag.get('v_q_score', 0.0):.3f}",
+                                        'V_b Score': f"{diag.get('v_b_score', 0.0):.3f}",
+                                        'V_l Score': f"{diag.get('v_l_score', 0.0):.3f}",
+                                        'Action Taken': diag.get('decision', 'N/A'),
+                                        'Flagged': "🚩" if diag.get('is_outlier', False) else "✅"
+                                    })
+                                
+                                if diagnostics_data:
+                                    df_diagnostics = pd.DataFrame(diagnostics_data)
+                                    st.dataframe(df_diagnostics, use_container_width=True)
+                                    
+                                    if len(row_diagnostics) > 20:
+                                        st.caption(f"Showing first 20 of {len(row_diagnostics)} processed rows...")
+                                
+                                # Logic rule failures
+                                logic_failures = iter_data.get('logic_failures', [])
+                                if logic_failures:
+                                    st.subheader("⚠️ Logic Rule Failures")
+                                    for failure in logic_failures[:10]:  # Limit to first 10
+                                        row_id = failure.get('row_id', 'N/A')
+                                        rule = failure.get('rule', 'N/A')
+                                        feature = failure.get('feature', 'N/A')
+                                        action = failure.get('action', 'N/A')
+                                        
+                                        st.markdown(f"""
+                                        - **Row {row_id}**: Logic failed on `{feature}` rule → {action}
+                                        """)
+                            else:
+                                st.info("No detailed row diagnostics available for this iteration.")
+                else:
+                    st.info("No iteration details available for this block.")
+        
+        # Summary of transparency
+        st.subheader("🎯 Transparency Summary")
+        
+        total_rows_processed = sum(block.get('n_samples', 0) for block in block_logs)
+        total_blocks = len(block_logs)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Total Rows Processed", total_rows_processed)
+            st.metric("Total Blocks Created", total_blocks)
+        
+        with col2:
+            st.markdown("""
+            **🔍 What This Shows**:
+            - Which specific rows had low confidence scores
+            - What actions were taken (reweight, flag, retain)
+            - How the system improved block by block
+            - Complete audit trail of all decisions
+            """)
+
     def run(self):
         """Runs the dashboard."""
         # Display SREE logo and title

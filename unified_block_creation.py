@@ -86,10 +86,11 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
         permanence_validator = PermanenceValidator()
         logic_validator = LogicValidator()
         
-        # Initialize trust loop
-        trust_loop = TrustUpdateLoop(validators=[
-            pattern_validator, presence_validator, permanence_validator, logic_validator
-        ])
+        # Initialize trust loop with appropriate configuration
+        trust_loop = TrustUpdateLoop(
+            validators=[pattern_validator, presence_validator, permanence_validator, logic_validator],
+            **config_to_use  # Pass the selected configuration (PPP_CONFIG or DASHBOARD_PPP_CONFIG)
+        )
         
         # Prepare data
         X_train, X_test, y_train, y_test = train_test_split(
