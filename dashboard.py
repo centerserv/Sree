@@ -6,32 +6,33 @@ Interactive dashboard to visualize all SREE project results and upload CSV datas
 
 import streamlit as st
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import json
-import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime
-import io
-import base64
-import warnings
+import pickle
 import os
-from typing import List, Dict
+import time
+from datetime import datetime, timedelta
+import logging
+from typing import Dict, Any, Optional, Tuple
+import sys
+import traceback
 
-# Suppress sklearn warnings about classification vs regression
-warnings.filterwarnings('ignore', category=UserWarning, module='sklearn.metrics._classification')
+# Add the project root to Python path
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
 
-# Import SREE components
+from config import PPP_CONFIG, DASHBOARD_PPP_CONFIG
 from data_loader import DataLoader
 from layers.pattern import PatternValidator
 from layers.presence import PresenceValidator
 from layers.permanence import PermanenceValidator
 from layers.logic import LogicValidator
-from loop.trust_loop import TrustUpdateLoop
-from config import setup_logging
+from visualization import setup_logging
 
 # Import advanced tracking components
 try:
@@ -47,6 +48,90 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+class TimingTracker:
+    """Tracks execution time and provides real-time updates."""
+    
+    def __init__(self):
+        self.start_time = None
+        self.end_time = None
+        self.phase_times = {}
+        self.current_phase = None
+        
+    def start(self, phase_name: str = "Analysis"):
+        """Start timing for a specific phase."""
+        self.start_time = time.time()
+        self.current_phase = phase_name
+        self.phase_times[phase_name] = {'start': self.start_time, 'end': None}
+        return self.start_time
+        
+    def update_phase(self, phase_name: str):
+        """Update to a new phase, ending the previous one."""
+        current_time = time.time()
+        if self.current_phase and self.current_phase in self.phase_times:
+            self.phase_times[self.current_phase]['end'] = current_time
+        
+        self.current_phase = phase_name
+        self.phase_times[phase_name] = {'start': current_time, 'end': None}
+        
+    def end(self):
+        """End the current timing."""
+        self.end_time = time.time()
+        if self.current_phase and self.current_phase in self.phase_times:
+            self.phase_times[self.current_phase]['end'] = self.end_time
+            
+    def get_elapsed_time(self) -> float:
+        """Get elapsed time since start."""
+        if not self.start_time:
+            return 0.0
+        current_time = time.time()
+        return current_time - self.start_time
+        
+    def get_total_time(self) -> float:
+        """Get total execution time."""
+        if not self.start_time or not self.end_time:
+            return self.get_elapsed_time()
+        return self.end_time - self.start_time
+        
+    def format_time(self, seconds: float) -> str:
+        """Format time in human-readable format."""
+        if seconds < 1:
+            return f"{seconds:.2f}s"
+        elif seconds < 60:
+            return f"{seconds:.1f}s"
+        elif seconds < 3600:
+            minutes = int(seconds // 60)
+            secs = int(seconds % 60)
+            return f"{minutes}m {secs}s"
+        else:
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            return f"{hours}h {minutes}m"
+            
+    def get_formatted_elapsed(self) -> str:
+        """Get formatted elapsed time."""
+        return self.format_time(self.get_elapsed_time())
+        
+    def get_formatted_total(self) -> str:
+        """Get formatted total time."""
+        return self.format_time(self.get_total_time())
+        
+    def display_real_time_update(self, placeholder, phase_name: str = None):
+        """Display real-time timing update in a Streamlit placeholder."""
+        elapsed = self.get_elapsed_time()
+        current_phase = phase_name or self.current_phase or "Processing"
+        
+        # Create timing display
+        timing_text = f"⏱️ **{current_phase}** | Elapsed: **{self.format_time(elapsed)}**"
+        
+        # Add estimated remaining time for known phases
+        if elapsed > 10:  # After 10 seconds, show some estimates
+            if "Block Creation" in current_phase:
+                estimated_total = elapsed * 1.5  # Rough estimate
+                remaining = max(0, estimated_total - elapsed)
+                timing_text += f" | Est. remaining: **{self.format_time(remaining)}**"
+                
+        placeholder.info(timing_text)
+
 class SREEDashboard:
     """Interactive dashboard for SREE results."""
     
@@ -54,6 +139,7 @@ class SREEDashboard:
         self.logs_dir = Path("logs")
         self.plots_dir = Path("plots")
         self.logger = setup_logging()
+        self.timing_tracker = TimingTracker()  # Add timing tracker
         
         # Initialize SREE components
         self.data_loader = DataLoader()
@@ -616,27 +702,30 @@ class SREEDashboard:
                     
                     # Run SREE analysis
                     if st.button("🚀 Run SREE Analysis", type="primary"):
-                        # Create placeholder for real-time updates
+                        # Create placeholders for real-time updates
                         status_placeholder = st.empty()
+                        timing_placeholder = st.empty()
                         progress_bar = st.progress(0)
                         
                         with st.spinner("🔄 Running optimized SREE analysis..."):
                             status_placeholder.info("⚡ Using dashboard-optimized configuration for faster processing...")
                             progress_bar.progress(10)
                             
-                            results = self.run_sree_analysis(X, y)
-                            progress_bar.progress(90)
+                            results = self.run_sree_analysis(X, y, status_placeholder, progress_bar, timing_placeholder)
                             
                             if results and 'error' not in results:
-                                progress_bar.progress(100)
-                                status_placeholder.success("✅ Analysis completed successfully!")
                                 st.session_state.analysis_results = results
+                                
+                                # Show execution time summary
+                                execution_time = results.get('execution_time', {})
+                                if execution_time:
+                                    st.success(f"🎉 Analysis completed successfully in **{execution_time.get('formatted', 'Unknown')}**!")
                                 
                                 # Show immediate summary
                                 st.balloons()
                                 
-                                # Quick results preview
-                                col1, col2, col3, col4 = st.columns(4)
+                                # Quick results preview with timing
+                                col1, col2, col3, col4, col5 = st.columns(5)
                                 with col1:
                                     st.metric("Accuracy", f"{results.get('accuracy', 0):.1%}")
                                 with col2:
@@ -645,24 +734,40 @@ class SREEDashboard:
                                     st.metric("Entropy", f"{results.get('entropy', 0):.3f}")
                                 with col4:
                                     st.metric("Blocks", results.get('block_count', 0))
+                                with col5:
+                                    execution_time = results.get('execution_time', {})
+                                    st.metric("⏱️ Time", execution_time.get('formatted', 'N/A'))
                                 
                                 # Show full results
                                 self.display_sree_results(results)
                             else:
-                                progress_bar.empty()
                                 status_placeholder.error("❌ Analysis failed. Check logs for details.")
                                 if results:
-                                    st.error(f"Error: {results.get('error', 'Unknown error')}")
+                                    execution_time = results.get('execution_time', {})
+                                    if execution_time:
+                                        st.error(f"Error after {execution_time.get('formatted', 'Unknown time')}: {results.get('error', 'Unknown error')}")
+                                    else:
+                                        st.error(f"Error: {results.get('error', 'Unknown error')}")
                 
             except Exception as e:
                 st.error(f"Error reading file: {str(e)}")
     
-    def run_sree_analysis(self, X: np.ndarray, y: np.ndarray) -> dict:
-        """Run SREE analysis on uploaded data using the centralized logic."""
+    def run_sree_analysis(self, X: np.ndarray, y: np.ndarray, status_placeholder=None, progress_bar=None, timing_placeholder=None) -> dict:
+        """Run SREE analysis on uploaded data using the centralized logic with timing tracking."""
         try:
+            # Start timing
+            self.timing_tracker.start("SREE Analysis Initialization")
+            start_time = datetime.now()
+            
             # Add verbose logging
-            print(f"🚀 [SREE] Starting analysis at {datetime.now().strftime('%H:%M:%S')}")
+            print(f"🚀 [SREE] Starting analysis at {start_time.strftime('%H:%M:%S')}")
             print(f"📊 [SREE] Dataset shape: {X.shape}, Target classes: {len(np.unique(y))}")
+            
+            # Update status and timing
+            if status_placeholder:
+                status_placeholder.info("🚀 Initializing SREE analysis...")
+            if timing_placeholder:
+                self.timing_tracker.display_real_time_update(timing_placeholder, "Initialization")
             
             # Get industry configuration
             industry_config = st.session_state.get('industry_config', {})
@@ -671,6 +776,10 @@ class SREEDashboard:
                 print(f"📈 [SREE] Thresholds - Accuracy: ≥{industry_config.get('accuracy_threshold', 0.95):.3f}, Trust: ≥{industry_config.get('trust_threshold', 0.85):.3f}, Entropy: ≤{industry_config.get('entropy_threshold', 1.5):.3f}")
             
             # Set deterministic random seeds for consistent results
+            self.timing_tracker.update_phase("Data Preparation")
+            if timing_placeholder:
+                self.timing_tracker.display_real_time_update(timing_placeholder, "Data Preparation")
+                
             np.random.seed(42)
             import random
             random.seed(42)
@@ -690,6 +799,14 @@ class SREEDashboard:
                 )
             
             # Use the Unified Block Creation system with industry-specific parameters
+            self.timing_tracker.update_phase("Unified Block Creation")
+            if status_placeholder:
+                status_placeholder.info("🔄 Running unified block creation...")
+            if timing_placeholder:
+                self.timing_tracker.display_real_time_update(timing_placeholder, "Block Creation & Analysis")
+            if progress_bar:
+                progress_bar.progress(20)
+                
             print(f"🔄 [SREE] Starting unified block creation...")
             from unified_block_creation import run_unified_block_creation
             
@@ -698,6 +815,9 @@ class SREEDashboard:
                 # Sanitize industry name for filename
                 industry_name = industry_config.get('name', 'general')
                 sanitized_name = industry_name.lower().replace(' ', '_').replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
+                
+                if progress_bar:
+                    progress_bar.progress(40)
                 
                 results = run_unified_block_creation(
                     X, y, 
@@ -711,9 +831,22 @@ class SREEDashboard:
                 )
             else:
                 # Fallback to default parameters with optimized config
+                if progress_bar:
+                    progress_bar.progress(40)
                 results = run_unified_block_creation(X, y, dataset_name="custom", use_dashboard_config=True)
             
+            self.timing_tracker.update_phase("Results Processing")
+            if timing_placeholder:
+                self.timing_tracker.display_real_time_update(timing_placeholder, "Processing Results")
+            if progress_bar:
+                progress_bar.progress(80)
+                
             print(f"✅ [SREE] Unified block creation completed")
+            
+            # End timing and calculate total execution time
+            self.timing_tracker.end()
+            end_time = datetime.now()
+            total_execution_time = self.timing_tracker.get_total_time()
             
             # Map new result structure to expected dashboard format for compatibility
             final_results = {
@@ -733,16 +866,42 @@ class SREEDashboard:
                 'configuration': results.get('configuration', {}),
                 'thresholds': results.get('thresholds', {}),
                 'ppp_results': results.get('ppp_results', {}),  # Include PPP loop results
-                'train_results': results.get('train_results', {})  # Include pattern validator training results
+                'train_results': results.get('train_results', {}),  # Include pattern validator training results
+                # Add timing information
+                'execution_time': {
+                    'total_seconds': total_execution_time,
+                    'formatted': self.timing_tracker.get_formatted_total(),
+                    'start_time': start_time.isoformat(),
+                    'end_time': end_time.isoformat(),
+                    'phases': self.timing_tracker.phase_times
+                }
             }
+            
+            # Final status updates
+            if status_placeholder:
+                status_placeholder.success(f"✅ Analysis completed in {self.timing_tracker.get_formatted_total()}!")
+            if timing_placeholder:
+                timing_placeholder.success(f"🎉 **COMPLETED** | Total time: **{self.timing_tracker.get_formatted_total()}** | Finished at **{end_time.strftime('%H:%M:%S')}**")
+            if progress_bar:
+                progress_bar.progress(100)
             
             print(f"📊 [SREE] Final metrics - Accuracy: {final_results['accuracy']:.3f}, Trust: {final_results['trust_score']:.3f}, Entropy: {final_results['entropy']:.3f}")
             print(f"🧱 [SREE] Total blocks created: {final_results['block_count']}")
             print(f"✅ [SREE] All requirements met: {'YES' if final_results['all_ok'] else 'NO'}")
+            print(f"⏱️ [SREE] Total execution time: {self.timing_tracker.get_formatted_total()}")
             
             return final_results
             
         except Exception as e:
+            # End timing even on error
+            self.timing_tracker.end()
+            error_time = self.timing_tracker.get_formatted_total() if self.timing_tracker.start_time else "N/A"
+            
+            if status_placeholder:
+                status_placeholder.error(f"❌ Analysis failed after {error_time}")
+            if timing_placeholder:
+                timing_placeholder.error(f"❌ **FAILED** | Elapsed: **{error_time}** | Error during {self.timing_tracker.current_phase or 'Unknown Phase'}")
+            
             print(f"❌ [SREE] Error in analysis: {str(e)}")
             self.logger.error(f"Error in SREE analysis: {str(e)}")
             return {
@@ -750,7 +909,12 @@ class SREEDashboard:
                 'trust_score': 0.0,
                 'entropy': 0.0,
                 'block_count': 0,
-                'error': str(e)
+                'error': str(e),
+                'execution_time': {
+                    'total_seconds': self.timing_tracker.get_total_time() if self.timing_tracker.start_time else 0,
+                    'formatted': error_time,
+                    'error_phase': self.timing_tracker.current_phase or 'Unknown Phase'
+                }
             }
     
     def display_sree_results(self, results: dict):
@@ -760,6 +924,44 @@ class SREEDashboard:
         if 'error' in results:
             st.error(f"Analysis failed: {results['error']}")
             return
+        
+        # Display execution timing information
+        execution_time = results.get('execution_time', {})
+        if execution_time:
+            st.subheader("⏱️ Execution Timing")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("⏱️ Total Time", execution_time.get('formatted', 'N/A'))
+            with col2:
+                start_time = execution_time.get('start_time', '')
+                if start_time:
+                    start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    st.metric("🚀 Started", start_dt.strftime('%H:%M:%S'))
+            with col3:
+                end_time = execution_time.get('end_time', '')
+                if end_time:
+                    end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                    st.metric("🏁 Finished", end_dt.strftime('%H:%M:%S'))
+                    
+            # Show phase breakdown if available
+            phases = execution_time.get('phases', {})
+            if phases:
+                with st.expander("🔍 Phase Breakdown", expanded=False):
+                    phase_data = []
+                    for phase_name, phase_info in phases.items():
+                        if phase_info.get('end'):
+                            phase_duration = phase_info['end'] - phase_info['start']
+                            phase_data.append({
+                                'Phase': phase_name,
+                                'Duration': self.timing_tracker.format_time(phase_duration),
+                                'Start': datetime.fromtimestamp(phase_info['start']).strftime('%H:%M:%S'),
+                                'End': datetime.fromtimestamp(phase_info['end']).strftime('%H:%M:%S')
+                            })
+                    
+                    if phase_data:
+                        phase_df = pd.DataFrame(phase_data)
+                        st.dataframe(phase_df, use_container_width=True)
         
         # Get industry configuration for comparison
         industry_config = st.session_state.get('industry_config', {})
