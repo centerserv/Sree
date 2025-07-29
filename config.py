@@ -140,7 +140,8 @@ PPP_CONFIG = {
         "block_size": 40,            # Smaller block size for more blocks
         "min_blocks": 2,             # Minimum blocks required
         "max_deviation": 0.02,       # Maximum allowed deviation
-        "convergence_threshold": 0.98 # Higher convergence threshold
+        "convergence_threshold": 0.98, # Higher convergence threshold
+        "consistency_threshold": 0.75  # Consistency threshold for permanence validation
     },
     "logic": {
         "min_conditions": 3,         # Minimum logical conditions
@@ -170,7 +171,8 @@ DASHBOARD_PPP_CONFIG = {
         "block_size": 50,            # Larger block size for speed
         "min_blocks": 2,
         "max_deviation": 0.03,       # Slightly more tolerant
-        "convergence_threshold": 0.95 # Slightly lower for speed
+        "convergence_threshold": 0.95, # Slightly lower for speed
+        "consistency_threshold": 0.70  # Lower threshold for faster processing
     },
     "logic": {
         "min_conditions": 2,         # Reduced for speed
