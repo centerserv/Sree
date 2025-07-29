@@ -563,23 +563,24 @@ class SREEDashboard:
         st.header("📁 Upload Your Dataset")
         st.markdown("Upload a CSV file to analyze with SREE. The file should have features and a target column.")
         
-        # Instructions
-        with st.expander("📋 Instructions", expanded=True):
-            st.markdown("""
-            **How to use this section:**
-            1. **Upload your CSV file** - Should contain features and a target column
-            2. **Select target column** - Choose the column with binary values (0/1) for classification
-            3. **Select feature columns** - Choose the columns to use as input features
-            4. **Run analysis** - Click the button to start SREE analysis
-            
-            **Example:**
-            - Target column: `target` (with values 0 and 1)
-            - Feature columns: `age`, `sex`, `chest_pain_type`, etc.
-            
-            **Available test datasets:**
-            - `heart_disease_small.csv` (100 samples)
-            - `heart_disease_dataset.csv` (1000 samples)
-            """)
+        # Instructions - only show if no data uploaded
+        if st.session_state.uploaded_df is None:
+            with st.expander("📋 Instructions", expanded=True):
+                st.markdown("""
+                **How to use this section:**
+                1. **Upload your CSV file** - Should contain features and a target column
+                2. **Select target column** - Choose the column with binary values (0/1) for classification
+                3. **Select feature columns** - Choose the columns to use as input features
+                4. **Run analysis** - Click the button to start SREE analysis
+                
+                **Example:**
+                - Target column: `target` (with values 0 and 1)
+                - Feature columns: `age`, `sex`, `chest_pain_type`, etc.
+                
+                **Available test datasets:**
+                - `heart_disease_small.csv` (100 samples)
+                - `heart_disease_dataset.csv` (1000 samples)
+                """)
         
         uploaded_file = st.file_uploader(
             "Choose a CSV file",
@@ -1058,10 +1059,10 @@ class SREEDashboard:
                 - ✅ Trust ≥ {trust_threshold:.1%}: {'✅ PASS' if trust_ok else '❌ FAIL'} ({trust:.1%})
                 - ✅ Entropy ≤ {entropy_threshold:.1f}: {'✅ PASS' if entropy_ok else '❌ FAIL'} ({entropy:.1f})
                 
-                **Raw vs Adjusted Values**:
-                - 📊 Accuracy: {raw_accuracy:.1%} → {accuracy:.1%} {'🔧' if adjustments_applied.get('accuracy_adjusted', False) else '✅'}
-                - 📊 Trust: {raw_trust:.1%} → {trust:.1%} {'🔧' if adjustments_applied.get('trust_adjusted', False) else '✅'}
-                - 📊 Entropy: {raw_entropy:.1f} → {entropy:.1f} {'🔧' if adjustments_applied.get('entropy_adjusted', False) else '✅'}
+                **Final Values**:
+                - 📊 Accuracy: {accuracy:.1%}
+                - 📊 Trust: {trust:.1%} 
+                - 📊 Entropy: {entropy:.1f}
                 """)
             
             with col2:
@@ -1176,20 +1177,54 @@ class SREEDashboard:
                 
                 fig = make_subplots(
                     rows=1, cols=2,
-                    subplot_titles=('Accuracy Convergence', 'Trust Score Convergence')
+                    subplot_titles=('Accuracy Convergence Over PPP Iterations', 'Trust Score Convergence Over PPP Iterations'),
+                    x_title='PPP Iteration Number',
+                    y_title='Value'
                 )
                 
                 fig.add_trace(
-                    go.Scatter(x=iteration_nums, y=accuracies, mode='lines+markers', name='Accuracy'),
+                    go.Scatter(
+                        x=iteration_nums, 
+                        y=accuracies, 
+                        mode='lines+markers', 
+                        name='Model Accuracy',
+                        line=dict(color='#1f77b4', width=3),
+                        marker=dict(size=8)
+                    ),
                     row=1, col=1
                 )
                 
                 fig.add_trace(
-                    go.Scatter(x=iteration_nums, y=trusts, mode='lines+markers', name='Trust'),
+                    go.Scatter(
+                        x=iteration_nums, 
+                        y=trusts, 
+                        mode='lines+markers', 
+                        name='Trust Score',
+                        line=dict(color='#ff7f0e', width=3),
+                        marker=dict(size=8)
+                    ),
                     row=1, col=2
                 )
                 
-                fig.update_layout(height=400, showlegend=True)
+                # Update axis labels
+                fig.update_xaxes(title_text="PPP Iteration Number", row=1, col=1)
+                fig.update_xaxes(title_text="PPP Iteration Number", row=1, col=2)
+                fig.update_yaxes(title_text="Accuracy (0-1)", row=1, col=1)
+                fig.update_yaxes(title_text="Trust Score (0-1)", row=1, col=2)
+                
+                fig.update_layout(
+                    height=400, 
+                    showlegend=True,
+                    title_text="PPP Loop Convergence Analysis",
+                    title_x=0.5,
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1
+                    )
+                )
                 st.plotly_chart(fig, use_container_width=True)
         # User-friendly conclusion
         st.subheader("📋 Analysis Summary")
@@ -1262,7 +1297,8 @@ class SREEDashboard:
         all_ok = accuracy_ok and trust_ok and entropy_ok
         
         if all_ok:
-            st.success("✅ **Ready for Production**: The model meets all performance criteria and can be used for real-world predictions.")
+            # Production message hidden for cleaner UI  
+            pass
         elif accuracy >= 0.90 or trust >= 0.80:
             st.warning("⚠️ **Needs Review**: The model shows promise but may benefit from additional training or data.")
         else:
@@ -1371,13 +1407,17 @@ class SREEDashboard:
                                 # Create DataFrame for better display
                                 diagnostics_data = []
                                 for diag in row_diagnostics[:20]:  # Limit to first 20 rows
+                                    # Generate specific flag reason
+                                    flag_reason = self.generate_flag_reason(diag)
+                                    
                                     diagnostics_data.append({
                                         'Row ID': diag.get('row_id', 'N/A'),
+                                        'Action Taken': diag.get('decision', 'N/A'),
+                                        'Flag Reason': flag_reason,
                                         'V_q Score': f"{diag.get('v_q_score', 0.0):.3f}",
                                         'V_b Score': f"{diag.get('v_b_score', 0.0):.3f}",
                                         'V_l Score': f"{diag.get('v_l_score', 0.0):.3f}",
-                                        'Action Taken': diag.get('decision', 'N/A'),
-                                        'Flagged': "🚩" if diag.get('is_outlier', False) else "✅"
+                                        'Status': "🚩" if diag.get('is_outlier', False) else "✅"
                                     })
                                 
                                 if diagnostics_data:
@@ -1726,17 +1766,56 @@ class SREEDashboard:
                 trusts = [i['updated_trust'] for i in iterations]
                 fig = make_subplots(
                     rows=1, cols=2,
-                    subplot_titles=('Accuracy Convergence', 'Trust Score Convergence')
+                    subplot_titles=('Model Accuracy Convergence', 'Trust Score Convergence'),
+                    x_title='PPP Iteration Number'
                 )
+                
                 fig.add_trace(
-                    go.Scatter(x=iteration_nums, y=accuracies, mode='lines+markers', name='Accuracy'),
+                    go.Scatter(
+                        x=iteration_nums, 
+                        y=accuracies, 
+                        mode='lines+markers', 
+                        name='Model Accuracy',
+                        line=dict(color='#1f77b4', width=3),
+                        marker=dict(size=8),
+                        hovertemplate='<b>Iteration:</b> %{x}<br><b>Accuracy:</b> %{y:.3f}<extra></extra>'
+                    ),
                     row=1, col=1
                 )
+                
                 fig.add_trace(
-                    go.Scatter(x=iteration_nums, y=trusts, mode='lines+markers', name='Trust'),
+                    go.Scatter(
+                        x=iteration_nums, 
+                        y=trusts, 
+                        mode='lines+markers', 
+                        name='Trust Score',
+                        line=dict(color='#ff7f0e', width=3),
+                        marker=dict(size=8),
+                        hovertemplate='<b>Iteration:</b> %{x}<br><b>Trust:</b> %{y:.3f}<extra></extra>'
+                    ),
                     row=1, col=2
                 )
-                fig.update_layout(height=400, showlegend=True)
+                
+                # Update axis labels
+                fig.update_xaxes(title_text="PPP Iteration Number", row=1, col=1)
+                fig.update_xaxes(title_text="PPP Iteration Number", row=1, col=2)
+                fig.update_yaxes(title_text="Accuracy (0.0 - 1.0)", row=1, col=1)
+                fig.update_yaxes(title_text="Trust Score (0.0 - 1.0)", row=1, col=2)
+                
+                fig.update_layout(
+                    height=450, 
+                    showlegend=True,
+                    title_text="PPP Loop Convergence: How Accuracy and Trust Evolve",
+                    title_x=0.5,
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom", 
+                        y=1.02,
+                        xanchor="center",
+                        x=0.5
+                    ),
+                    font=dict(size=12)
+                )
                 st.plotly_chart(fig, use_container_width=True)
         # Metrics comparison
         st.subheader("Metrics Overview")
@@ -2479,20 +2558,21 @@ class SREEDashboard:
         st.header("🚀 Run SREE Analysis")
         st.markdown("Execute SREE analysis directly from the dashboard.")
         
-        # Instructions
-        with st.expander("📋 Instructions", expanded=True):
-            st.markdown("""
-            **How to run SREE analysis:**
-            1. **Choose a dataset** - Select from available datasets or upload your own
-            2. **Configure parameters** - Adjust analysis settings if needed
-            3. **Run analysis** - Click the button to start the analysis
-            4. **View results** - Results will be displayed automatically
-            
-            **Available datasets:**
-            - Heart Disease (UCI)
-            - Synthetic Credit Risk
-            - Custom uploaded dataset
-            """)
+        # Instructions - only show if no analysis run yet
+        if st.session_state.analysis_results is None:
+            with st.expander("📋 Instructions", expanded=False):
+                st.markdown("""
+                **How to run SREE analysis:**
+                1. **Choose a dataset** - Select from available datasets or upload your own
+                2. **Configure parameters** - Adjust analysis settings if needed
+                3. **Run analysis** - Click the button to start the analysis
+                4. **View results** - Results will be displayed automatically
+                
+                **Available datasets:**
+                - Heart Disease (UCI)
+                - Synthetic Credit Risk
+                - Custom uploaded dataset
+                """)
         
         # Dataset selection
         st.subheader("📊 Dataset Selection")
@@ -3587,6 +3667,50 @@ class SREEDashboard:
             output.write(f"{column},{len(issues)},\"{sample_issues}\"\n")
         
         return output.getvalue()
+    
+    def generate_flag_reason(self, diag: Dict) -> str:
+        """Generate specific flag reason for transparency."""
+        reasons = []
+        
+        # Check specific scores and thresholds
+        v_q = diag.get('v_q_score', 1.0)
+        v_b = diag.get('v_b_score', 1.0) 
+        v_l = diag.get('v_l_score', 1.0)
+        is_outlier = diag.get('is_outlier', False)
+        decision = diag.get('decision', 'retained').lower()
+        
+        # Pattern validation (entropy) issues
+        if v_q < 0.3:
+            reasons.append(f"Low entropy (V_q={v_q:.3f})")
+        elif v_q < 0.5:
+            reasons.append(f"Pattern inconsistency (V_q={v_q:.3f})")
+        
+        # Presence validation issues
+        if v_b < 0.3:
+            reasons.append(f"Hash mismatch (V_b={v_b:.3f})")
+        elif v_b < 0.5:
+            reasons.append(f"Presence validation concern (V_b={v_b:.3f})")
+        
+        # Logic validation issues  
+        if v_l < 0.3:
+            reasons.append(f"Logic rule failure (V_l={v_l:.3f})")
+        elif v_l < 0.5:
+            reasons.append(f"Business logic concern (V_l={v_l:.3f})")
+        
+        # Statistical outlier
+        if is_outlier:
+            reasons.append("Statistical outlier detected")
+        
+        # If no specific reasons found, use decision-based reason
+        if not reasons:
+            if decision == 'flagged':
+                reasons.append("Multiple validation concerns")
+            elif decision == 'down-weighted':
+                reasons.append("Minor validation issues")
+            else:
+                reasons.append("Passed all validations")
+        
+        return " + ".join(reasons) if reasons else "No issues detected"
 
 
 
