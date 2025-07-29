@@ -732,7 +732,9 @@ class SREEDashboard:
                 'block_logs': results.get('block_logs', []),
                 'adjustments_applied': results.get('adjustments_applied', False),
                 'configuration': results.get('configuration', {}),
-                'thresholds': results.get('thresholds', {})
+                'thresholds': results.get('thresholds', {}),
+                'ppp_results': results.get('ppp_results', {}),  # Include PPP loop results
+                'train_results': results.get('train_results', {})  # Include pattern validator training results
             }
             
             print(f"📊 [SREE] Final metrics - Accuracy: {final_results['accuracy']:.3f}, Trust: {final_results['trust_score']:.3f}, Entropy: {final_results['entropy']:.3f}")
@@ -1094,33 +1096,49 @@ class SREEDashboard:
             """)
             return
         
-        # Display each block's diagnostics
-        for i, block in enumerate(block_logs):
-            block_id = block.get('block_id', i+1)
+        # Group blocks by main loop number to avoid showing sub-blocks
+        main_blocks = {}
+        for block in block_logs:
+            main_block_num = block.get('block', block.get('block_id', 1))
+            if main_block_num not in main_blocks:
+                main_blocks[main_block_num] = []
+            main_blocks[main_block_num].append(block)
+        
+        # Display each main block's diagnostics
+        for block_num, blocks in sorted(main_blocks.items()):
+            # Use the first block for summary data, combine iterations
+            main_block = blocks[0]
+            all_iterations = []
+            total_samples = 0
             
-            with st.expander(f"📊 Block {block_id} - Diagnostic Details", expanded=(i == 0)):
+            for block in blocks:
+                all_iterations.extend(block.get('iterations', []))
+                total_samples += block.get('n_samples', 0)
+            
+            with st.expander(f"📊 Block {block_num} - Diagnostic Details", expanded=(block_num == 1)):
                 # Block summary
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    st.metric("Samples Processed", block.get('n_samples', 'N/A'))
+                    st.metric("Samples Processed", total_samples)
                 
                 with col2:
-                    st.metric("Block Status", "✅ COMPLETED" if block.get('completed', True) else "🔄 IN PROGRESS")
+                    st.metric("Block Status", "✅ COMPLETED" if main_block.get('completed', True) else "🔄 IN PROGRESS")
                 
                 with col3:
-                    accuracy = block.get('final_accuracy', 0.0)
+                    accuracy = main_block.get('accuracy', main_block.get('final_accuracy', 0.0))
                     st.metric("Block Accuracy", f"{accuracy:.3f}")
                 
-                # Show iterations if available
-                iterations = block.get('iterations', [])
+                # Show combined iterations
+                iterations = all_iterations
                 if iterations:
                     st.subheader("🔄 Iteration Breakdown")
                     
                     for iter_data in iterations:
                         iter_num = iter_data.get('iteration', 'N/A')
                         
-                        with st.expander(f"Iteration {iter_num}"):
+                        st.markdown(f"**🔄 Iteration {iter_num}**")
+                        with st.container():
                             # Summary metrics
                             summary = iter_data.get('summary', {})
                             

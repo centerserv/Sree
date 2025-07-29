@@ -110,12 +110,14 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
         consecutive_ok = 0
         block_logs = []
         stop_reason = ""
+        last_ppp_results = {}  # Store the last PPP results for dashboard display
         
         while block_number <= max_blocks:
             logger.info(f"🔄 Running Block {block_number}")
             
             # Run PPP loop for this block
             ppp_results = trust_loop.run_ppp_loop(X_train_scaled, y_train, X_test_scaled, y_test)
+            last_ppp_results = ppp_results  # Store for final results
             
             # Get metrics for this block
             accuracy = ppp_results.get('final_accuracy', 0.0)
@@ -269,6 +271,8 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
                 'trust_threshold': trust_threshold,
                 'entropy_threshold': entropy_threshold
             },
+            'ppp_results': last_ppp_results,  # Include PPP loop results for dashboard display
+            'train_results': train_results,  # Include pattern validator training results
             'configuration': {
                 'max_blocks': max_blocks,
                 'required_consecutive_ok': required_consecutive_ok,
