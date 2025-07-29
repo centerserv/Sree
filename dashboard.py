@@ -18,7 +18,7 @@ import os
 import time
 from datetime import datetime, timedelta
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 import sys
 import traceback
 
