@@ -1184,10 +1184,11 @@ class TrustUpdateLoop:
         """
         decisions = []
         for i in range(len(v_q)):
-            # Check for low scores
-            low_v_q = v_q[i] < 0.3
-            low_v_b = v_b[i] < 0.3
-            low_v_l = v_l[i] < 0.3
+            # Check for low scores - adjusted thresholds based on actual score distributions
+            # Pattern scores (V_q) are typically very low (0.001-0.2), so use lower threshold
+            low_v_q = v_q[i] < 0.05  # Much lower threshold for pattern scores
+            low_v_b = v_b[i] < 0.3   # Keep moderate threshold for presence scores
+            low_v_l = v_l[i] < 0.3   # Keep moderate threshold for logic scores
             high_entropy = entropy_scores[i] > 2.0
             
             # Make decision based on conditions
