@@ -1,0 +1,41 @@
+{
+  "final_score": 0.7951359093624183,
+  "status": "acceptable",
+  "industry": "test_diagnostic",
+  "timestamp": "2025-07-29T01:14:37.321421",
+  "auto_refinement_triggered": false,
+  "breakdown": [
+    {
+      "metric": "accuracy",
+      "value": 0.95,
+      "threshold": 0.95,
+      "status": "pass",
+      "reason": "Accuracy 0.950 meets target (\u22650.950)",
+      "weight": 0.4
+    },
+    {
+      "metric": "trust",
+      "value": 0.8504530312080606,
+      "threshold": 0.85,
+      "status": "pass",
+      "reason": "Trust 0.850 meets target (\u22650.850)",
+      "weight": 0.3
+    },
+    {
+      "metric": "entropy",
+      "value": 1.5,
+      "threshold": 1.5,
+      "status": "pass",
+      "reason": "Entropy 1.500 is within acceptable range (\u22641.500)",
+      "weight": 0.2
+    },
+    {
+      "metric": "block_count",
+      "value": 2,
+      "threshold": 0,
+      "status": "pass",
+      "reason": "Block count 2 is efficient (\u22644)",
+      "weight": 0.1
+    }
+  ]
+}
