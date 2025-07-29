@@ -663,6 +663,10 @@ class SREEDashboard:
             
             # Use industry-specific parameters if available
             if industry_config:
+                # Sanitize industry name for filename
+                industry_name = industry_config.get('name', 'general')
+                sanitized_name = industry_name.lower().replace(' ', '_').replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
+                
                 results = run_unified_block_creation(
                     X, y, 
                     accuracy_threshold=industry_config.get('accuracy_threshold', 0.95),
@@ -670,7 +674,7 @@ class SREEDashboard:
                     entropy_threshold=industry_config.get('entropy_threshold', 1.5),
                     max_blocks=industry_config.get('max_blocks', 25),
                     required_consecutive_ok=industry_config.get('consecutive_blocks_required', 2),
-                    dataset_name=f"custom_{industry_config.get('name', 'general').lower().replace(' ', '_')}"
+                    dataset_name=f"custom_{sanitized_name}"
                 )
             else:
                 # Fallback to default parameters
