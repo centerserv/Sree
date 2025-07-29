@@ -138,12 +138,45 @@ PPP_CONFIG = {
     "permanence": {
         "hash_algorithm": "sha256",  # Hash algorithm for logging
         "block_size": 40,            # Smaller block size for more blocks
-        "consistency_threshold": 0.75 # Lower threshold for more blocks
+        "min_blocks": 2,             # Minimum blocks required
+        "max_deviation": 0.02,       # Maximum allowed deviation
+        "convergence_threshold": 0.98 # Higher convergence threshold
     },
     "logic": {
-        "consistency_weight": 0.7,   # Higher weight for consistency validation
-        "confidence_threshold": 0.60, # Lower threshold for more processing
-        "max_inconsistencies": 0.20  # Fewer allowed inconsistencies
+        "min_conditions": 3,         # Minimum logical conditions
+        "max_rules": 15,             # Maximum logical rules
+        "confidence_threshold": 0.85, # Higher confidence threshold
+        "support_threshold": 0.15    # Lower support threshold for more rules
+    }
+}
+
+# Dashboard optimized PPP configuration for faster processing
+DASHBOARD_PPP_CONFIG = {
+    "iterations": 8,   # Reduced from 30 to 8 for faster dashboard response
+    "gamma": 0.5,      # Slightly higher for faster convergence
+    "alpha": 0.5,      # Slightly higher for faster convergence  
+    "beta": 0.6,       # Reduced slightly for speed
+    "delta": 0.3,      # Reduced for speed
+    "initial_trust": 0.85, # Same as original
+    "initial_state": 0.80, # Same as original
+    "presence": {
+        "entropy_threshold": 1.8,    # Slightly higher for faster processing
+        "min_confidence": 0.45,      # Slightly lower for speed
+        "entropy_penalty": 3.0,      # Reduced penalty for speed
+        "refinement_factor": 0.80    # Less aggressive for speed
+    },
+    "permanence": {
+        "hash_algorithm": "sha256",
+        "block_size": 50,            # Larger block size for speed
+        "min_blocks": 2,
+        "max_deviation": 0.03,       # Slightly more tolerant
+        "convergence_threshold": 0.95 # Slightly lower for speed
+    },
+    "logic": {
+        "min_conditions": 2,         # Reduced for speed
+        "max_rules": 10,             # Reduced for speed
+        "confidence_threshold": 0.80, # Slightly lower for speed
+        "support_threshold": 0.20    # Higher for fewer rules
     }
 }
 

@@ -674,11 +674,12 @@ class SREEDashboard:
                     entropy_threshold=industry_config.get('entropy_threshold', 1.5),
                     max_blocks=industry_config.get('max_blocks', 25),
                     required_consecutive_ok=industry_config.get('consecutive_blocks_required', 2),
-                    dataset_name=f"custom_{sanitized_name}"
+                    dataset_name=f"custom_{sanitized_name}",
+                    use_dashboard_config=True  # Use optimized config for faster dashboard processing
                 )
             else:
-                # Fallback to default parameters
-                results = run_unified_block_creation(X, y, dataset_name="custom")
+                # Fallback to default parameters with optimized config
+                results = run_unified_block_creation(X, y, dataset_name="custom", use_dashboard_config=True)
             
             print(f"✅ [SREE] Unified block creation completed")
             print(f"📊 [SREE] Final metrics - Accuracy: {results.get('accuracy', 0.0):.3f}, Trust: {results.get('trust_score', 0.0):.3f}, Entropy: {results.get('entropy', 0.0):.3f}")
@@ -2754,7 +2755,8 @@ class SREEDashboard:
                         entropy_threshold=entropy_range[1],
                         max_blocks=max_blocks,
                         required_consecutive_ok=consecutive_blocks,
-                        dataset_name="custom"
+                        dataset_name="custom",
+                        use_dashboard_config=True  # Use optimized config for faster processing
                     )
                     
                     # Clear any old analysis results to avoid confusion
