@@ -20,6 +20,9 @@ from loop.trust_loop import TrustUpdateLoop
 # Import adaptive evaluation system
 from evaluation import create_adaptive_evaluator, AdaptiveEvaluationResult
 
+# Import diagnostic system
+from diagnostics.block_diagnostics import get_diagnostic_tracker, DiagnosticType, DiagnosticAction
+
 
 def run_unified_block_creation(X: np.ndarray, y: np.ndarray, 
                              accuracy_threshold: float = 0.95,
@@ -92,8 +95,14 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
     block_logs = []
     stop_reason = ""
     
+    # Initialize diagnostic tracker
+    diagnostic_tracker = get_diagnostic_tracker()
+    
     while block_number <= max_blocks:
         logger.info(f"🔄 Running Block {block_number}")
+        
+        # Start diagnostic tracking for this block
+        diagnostic_tracker.start_block(block_number, len(X_train), X_train.shape[1])
         
         # Run PPP loop for this block
         ppp_results = trust_loop.run_ppp_loop(X_train_scaled, y_train, X_test_scaled, y_test)
@@ -150,6 +159,19 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
         else:
             logger.info(f"⚠️ Block {block_number} is out of range → acc={accuracy:.3f}, trust={trust:.3f}, entropy={entropy:.3f}")
             consecutive_ok = 0
+        
+        # End diagnostic tracking for this block
+        block_summary = {
+            'accuracy': accuracy,
+            'trust': trust,
+            'entropy': entropy,
+            'adjusted_accuracy': adjusted_accuracy,
+            'adjusted_trust': adjusted_trust,
+            'adjusted_entropy': adjusted_entropy,
+            'all_ok': all_ok,
+            'adjustments_applied': adjustments_applied
+        }
+        diagnostic_tracker.end_block(block_summary)
         
         # Check stop condition
         if consecutive_ok >= required_consecutive_ok:
@@ -236,7 +258,8 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
         'adjustments_applied': {
             'accuracy_adjusted': raw_accuracy != final_accuracy,
             'entropy_adjusted': raw_entropy != final_entropy
-        }
+        },
+        'diagnostics': diagnostic_tracker.get_all_diagnostics()
     }
     
     # Perform adaptive evaluation if enabled

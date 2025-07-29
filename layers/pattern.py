@@ -16,6 +16,13 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.preprocessing import StandardScaler
 from .base import Validator
 
+# Import diagnostic system
+try:
+    from diagnostics.block_diagnostics import get_diagnostic_tracker, DiagnosticType, DiagnosticAction
+    DIAGNOSTICS_AVAILABLE = True
+except ImportError:
+    DIAGNOSTICS_AVAILABLE = False
+
 # Disable XGBoost due to OpenMP dependency issues
 HAS_XGB = False
 
@@ -317,6 +324,38 @@ class PatternValidator(Validator):
         
         # Final normalization
         self._probabilities = sharpened / np.sum(sharpened, axis=1, keepdims=True)
+        
+        # Track diagnostics if available
+        if DIAGNOSTICS_AVAILABLE:
+            diagnostic_tracker = get_diagnostic_tracker()
+            confidence_scores = np.max(self._probabilities, axis=1)
+            
+            # Analyze each row for pattern-based issues
+            for i, conf in enumerate(confidence_scores):
+                original_weight = 1.0  # Default weight
+                final_weight = conf  # Use confidence as weight
+                
+                # Determine action based on confidence
+                if conf < 0.5:  # Low confidence
+                    action = DiagnosticAction.DOWN_WEIGHTED
+                    reason = f"Low pattern confidence ({conf:.3f})"
+                elif conf < 0.7:  # Medium confidence
+                    action = DiagnosticAction.FLAGGED
+                    reason = f"Medium pattern confidence ({conf:.3f})"
+                else:  # High confidence
+                    action = DiagnosticAction.RETAINED
+                    reason = f"High pattern confidence ({conf:.3f})"
+                
+                # Add row diagnostic
+                diagnostic_tracker.add_row_diagnostic(
+                    row_index=i,
+                    original_weight=original_weight,
+                    final_weight=final_weight,
+                    diagnostic_type=DiagnosticType.PATTERN,
+                    action_taken=action,
+                    reason=reason,
+                    confidence_score=conf
+                )
         
         return np.max(self._probabilities, axis=1)
 

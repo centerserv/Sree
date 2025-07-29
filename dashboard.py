@@ -814,6 +814,100 @@ class SREEDashboard:
                     
                     st.error(f"Failed: {', '.join(failed_requirements)}")
         
+        # Per-Block Diagnostics Section
+        diagnostics = results.get('diagnostics', [])
+        if diagnostics:
+            st.subheader("🔍 Per-Block Diagnostic Breakdown")
+            
+            # Summary statistics
+            total_blocks = len(diagnostics)
+            total_rows_processed = sum(bd.get('rows_processed', 0) for bd in diagnostics)
+            total_features_processed = sum(bd.get('features_processed', 0) for bd in diagnostics)
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Blocks", total_blocks)
+            with col2:
+                st.metric("Rows Processed", total_rows_processed)
+            with col3:
+                st.metric("Features Processed", total_features_processed)
+            
+            # Block-by-block breakdown
+            st.subheader("📊 Block-by-Block Analysis")
+            
+            for block_diagnostic in diagnostics:
+                block_num = block_diagnostic.get('block_number', 0)
+                rows_processed = block_diagnostic.get('rows_processed', 0)
+                features_processed = block_diagnostic.get('features_processed', 0)
+                summary_stats = block_diagnostic.get('summary_stats', {})
+                
+                with st.expander(f"🔍 Block {block_num} - {rows_processed} rows, {features_processed} features"):
+                    # Block summary
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Timestamp:** {block_diagnostic.get('timestamp', 'N/A')}")
+                        st.write(f"**Rows Processed:** {rows_processed}")
+                        st.write(f"**Features Processed:** {features_processed}")
+                    
+                    with col2:
+                        avg_weight_change = summary_stats.get('avg_weight_change', 0.0)
+                        total_weight_change = summary_stats.get('total_weight_change', 0.0)
+                        st.write(f"**Avg Weight Change:** {avg_weight_change:+.3f}")
+                        st.write(f"**Total Weight Change:** {total_weight_change:+.3f}")
+                    
+                    # Row actions summary
+                    row_actions = summary_stats.get('row_actions', {})
+                    if row_actions:
+                        st.write("**Row Actions:**")
+                        for action, count in row_actions.items():
+                            st.write(f"  - {action}: {count} rows")
+                    
+                    # Feature actions summary
+                    feature_actions = summary_stats.get('feature_actions', {})
+                    if feature_actions:
+                        st.write("**Feature Actions:**")
+                        for action, count in feature_actions.items():
+                            st.write(f"  - {action}: {count} features")
+                    
+                    # Detailed row diagnostics
+                    row_diagnostics = block_diagnostic.get('row_diagnostics', [])
+                    if row_diagnostics:
+                        st.write("**Row-Level Diagnostics:**")
+                        # Show only significant changes (weight change > 10%)
+                        significant_rows = [rd for rd in row_diagnostics if abs(rd.get('weight_change', 0)) > 0.1]
+                        
+                        if significant_rows:
+                            for rd in significant_rows[:10]:  # Show first 10 significant changes
+                                weight_change = rd.get('weight_change', 0)
+                                action = rd.get('action_taken', 'unknown')
+                                reason = rd.get('reason', 'No reason provided')
+                                feature = rd.get('feature_affected', 'N/A')
+                                
+                                st.write(f"  - **Row {rd.get('row_index', 0)}**: {action} ({weight_change:+.3f})")
+                                st.write(f"    Reason: {reason}")
+                                if feature != 'N/A':
+                                    st.write(f"    Feature: {feature}")
+                        else:
+                            st.write("  No significant row changes detected")
+                    
+                    # Detailed feature diagnostics
+                    feature_diagnostics = block_diagnostic.get('feature_diagnostics', [])
+                    if feature_diagnostics:
+                        st.write("**Feature-Level Diagnostics:**")
+                        # Show only significant changes (importance change > 5%)
+                        significant_features = [fd for fd in feature_diagnostics if abs(fd.get('importance_change', 0)) > 0.05]
+                        
+                        if significant_features:
+                            for fd in significant_features[:5]:  # Show first 5 significant changes
+                                importance_change = fd.get('importance_change', 0)
+                                action = fd.get('action_taken', 'unknown')
+                                reason = fd.get('reason', 'No reason provided')
+                                
+                                st.write(f"  - **{fd.get('feature_name', 'Unknown')}**: {action} ({importance_change:+.3f})")
+                                st.write(f"    Reason: {reason}")
+                        else:
+                            st.write("  No significant feature changes detected")
+        
         # Adaptive Evaluation Section
         if adaptive_eval:
             st.subheader("🔍 Adaptive Evaluation Results")
