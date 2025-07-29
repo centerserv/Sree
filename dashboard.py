@@ -617,10 +617,43 @@ class SREEDashboard:
                     
                     # Run SREE analysis
                     if st.button("🚀 Run SREE Analysis", type="primary"):
-                        with st.spinner("Running SREE analysis..."):
+                        # Create placeholder for real-time updates
+                        status_placeholder = st.empty()
+                        progress_bar = st.progress(0)
+                        
+                        with st.spinner("🔄 Running optimized SREE analysis..."):
+                            status_placeholder.info("⚡ Using dashboard-optimized configuration for faster processing...")
+                            progress_bar.progress(10)
+                            
                             results = self.run_sree_analysis(X, y)
-                            st.session_state.analysis_results = results
-                            self.display_sree_results(results)
+                            progress_bar.progress(90)
+                            
+                            if results and 'error' not in results:
+                                progress_bar.progress(100)
+                                status_placeholder.success("✅ Analysis completed successfully!")
+                                st.session_state.analysis_results = results
+                                
+                                # Show immediate summary
+                                st.balloons()
+                                
+                                # Quick results preview
+                                col1, col2, col3, col4 = st.columns(4)
+                                with col1:
+                                    st.metric("Accuracy", f"{results.get('accuracy', 0):.1%}")
+                                with col2:
+                                    st.metric("Trust Score", f"{results.get('trust_score', 0):.1%}")
+                                with col3:
+                                    st.metric("Entropy", f"{results.get('entropy', 0):.3f}")
+                                with col4:
+                                    st.metric("Blocks", results.get('block_count', 0))
+                                
+                                # Show full results
+                                self.display_sree_results(results)
+                            else:
+                                progress_bar.empty()
+                                status_placeholder.error("❌ Analysis failed. Check logs for details.")
+                                if results:
+                                    st.error(f"Error: {results.get('error', 'Unknown error')}")
                 
             except Exception as e:
                 st.error(f"Error reading file: {str(e)}")
@@ -682,10 +715,31 @@ class SREEDashboard:
                 results = run_unified_block_creation(X, y, dataset_name="custom", use_dashboard_config=True)
             
             print(f"✅ [SREE] Unified block creation completed")
-            print(f"📊 [SREE] Final metrics - Accuracy: {results.get('accuracy', 0.0):.3f}, Trust: {results.get('trust_score', 0.0):.3f}, Entropy: {results.get('entropy', 0.0):.3f}")
-            print(f"🧱 [SREE] Total blocks created: {results.get('block_count', 0)}")
             
-            return results
+            # Map new result structure to expected dashboard format for compatibility
+            final_results = {
+                'accuracy': results.get('final_accuracy', 0.0),
+                'trust_score': results.get('final_trust', 0.0),
+                'entropy': results.get('final_entropy', 0.0),
+                'block_count': results.get('final_block_count', 0),
+                'all_ok': results.get('final_all_ok', False),
+                'accuracy_ok': results.get('final_accuracy', 0.0) >= 0.95,
+                'trust_ok': results.get('final_trust', 0.0) >= 0.85,
+                'entropy_ok': results.get('final_entropy', 0.0) <= 1.5,
+                # Keep all original data for detailed analysis
+                'raw_results': results,
+                'stop_reason': results.get('stop_reason', ''),
+                'block_logs': results.get('block_logs', []),
+                'adjustments_applied': results.get('adjustments_applied', False),
+                'configuration': results.get('configuration', {}),
+                'thresholds': results.get('thresholds', {})
+            }
+            
+            print(f"📊 [SREE] Final metrics - Accuracy: {final_results['accuracy']:.3f}, Trust: {final_results['trust_score']:.3f}, Entropy: {final_results['entropy']:.3f}")
+            print(f"🧱 [SREE] Total blocks created: {final_results['block_count']}")
+            print(f"✅ [SREE] All requirements met: {'YES' if final_results['all_ok'] else 'NO'}")
+            
+            return final_results
             
         except Exception as e:
             print(f"❌ [SREE] Error in analysis: {str(e)}")
