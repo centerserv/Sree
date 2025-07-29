@@ -125,14 +125,27 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
             presence_stats = presence_validator.get_entropy_statistics()
             entropy = presence_stats.get('mean_entropy', 0.0)
             
-            # Log block results
-            block_logs.append({
-                'block': block_number,
-                'accuracy': accuracy,
-                'trust_score': trust,
-                'entropy': entropy,
-                'block_count': block_number  # Use the main loop block number, not internal PPP blocks
-            })
+            # Log block results with detailed diagnostics if available
+            detailed_logs = ppp_results.get('block_logs', [])
+            if detailed_logs:
+                # Use detailed logs from trust loop
+                for detailed_block in detailed_logs:
+                    # Update block ID to match our main loop numbering
+                    detailed_block['block'] = block_number
+                    detailed_block['accuracy'] = accuracy
+                    detailed_block['trust_score'] = trust
+                    detailed_block['entropy'] = entropy
+                    detailed_block['block_count'] = block_number
+                    block_logs.append(detailed_block)
+            else:
+                # Fallback to basic logs
+                block_logs.append({
+                    'block': block_number,
+                    'accuracy': accuracy,
+                    'trust_score': trust,
+                    'entropy': entropy,
+                    'block_count': block_number
+                })
             
             # Apply intelligent adjustments ONLY if needed for industry requirements
             adjusted_accuracy = accuracy
