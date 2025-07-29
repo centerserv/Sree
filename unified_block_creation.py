@@ -130,15 +130,22 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
             # Log block results with detailed diagnostics if available
             detailed_logs = ppp_results.get('block_logs', [])
             if detailed_logs:
-                # Use detailed logs from trust loop
+                # Take only the first detailed block and adjust it for our main loop
+                main_detailed_block = detailed_logs[0].copy()  # Use first block as representative
+                main_detailed_block['block'] = block_number    # Set correct main block number
+                main_detailed_block['block_id'] = block_number # Update block_id too
+                main_detailed_block['accuracy'] = accuracy
+                main_detailed_block['trust_score'] = trust
+                main_detailed_block['entropy'] = entropy
+                main_detailed_block['block_count'] = block_number
+                
+                # Combine all iterations from all detailed blocks
+                all_iterations = []
                 for detailed_block in detailed_logs:
-                    # Update block ID to match our main loop numbering
-                    detailed_block['block'] = block_number
-                    detailed_block['accuracy'] = accuracy
-                    detailed_block['trust_score'] = trust
-                    detailed_block['entropy'] = entropy
-                    detailed_block['block_count'] = block_number
-                    block_logs.append(detailed_block)
+                    all_iterations.extend(detailed_block.get('iterations', []))
+                main_detailed_block['iterations'] = all_iterations
+                
+                block_logs.append(main_detailed_block)
             else:
                 # Fallback to basic logs
                 block_logs.append({
