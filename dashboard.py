@@ -1768,7 +1768,8 @@ class SREEDashboard:
             st.warning("⚠️ **Some Requirements Not Met**: System needs optimization.")
         
         # Intelligent adjustments applied
-        adjustments = results.get('adjustments_applied', {})
+        adjustments_data = results.get('adjustments_applied', {})
+        adjustments = adjustments_data if isinstance(adjustments_data, dict) else {}
         if adjustments.get('accuracy_adjusted', False) or adjustments.get('entropy_adjusted', False):
             st.subheader("🔧 Intelligent Adjustments Applied")
             
@@ -3045,7 +3046,9 @@ class SREEDashboard:
             )
         
         # Raw vs Adjusted metrics
-        if results.get('adjustments_applied', {}).get('accuracy_adjusted', False) or results.get('adjustments_applied', {}).get('entropy_adjusted', False):
+        adjustments_data = results.get('adjustments_applied', {})
+        adjustments = adjustments_data if isinstance(adjustments_data, dict) else {}
+        if adjustments.get('accuracy_adjusted', False) or adjustments.get('entropy_adjusted', False):
             st.subheader("🔧 Intelligent Adjustments Applied")
             
             raw_metrics = results.get('raw_metrics', {})
