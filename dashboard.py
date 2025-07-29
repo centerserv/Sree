@@ -1425,28 +1425,46 @@ class SREEDashboard:
                             if row_diagnostics:
                                 st.subheader("📋 Row-Level Actions")
                                 
-                                # Create DataFrame for better display
+                                # Create DataFrame for better display - show only flagged rows
                                 diagnostics_data = []
-                                for diag in row_diagnostics[:20]:  # Limit to first 20 rows
-                                    # Generate specific flag reason
-                                    flag_reason = self.generate_flag_reason(diag)
+                                flagged_count = 0
+                                for diag in row_diagnostics:
+                                    decision = diag.get('decision', 'N/A').lower()
                                     
-                                    diagnostics_data.append({
-                                        'Row ID': diag.get('row_id', 'N/A'),
-                                        'Action Taken': diag.get('decision', 'N/A'),
-                                        'Flag Reason': flag_reason,
-                                        'V_q Score': f"{diag.get('v_q_score', 0.0):.3f}",
-                                        'V_b Score': f"{diag.get('v_b_score', 0.0):.3f}",
-                                        'V_l Score': f"{diag.get('v_l_score', 0.0):.3f}",
-                                        'Status': "🚩" if diag.get('is_outlier', False) else "✅"
-                                    })
+                                    # Only show rows that were flagged or down-weighted (actionable items)
+                                    if decision in ['flagged', 'down-weighted']:
+                                        # Generate specific flag reason
+                                        flag_reason = self.generate_flag_reason(diag)
+                                        
+                                        diagnostics_data.append({
+                                            'Row ID': diag.get('row_id', 'N/A'),
+                                            'Action Taken': diag.get('decision', 'N/A'),
+                                            'Flag Reason': flag_reason,
+                                            'V_q Score': f"{diag.get('v_q_score', 0.0):.3f}",
+                                            'V_b Score': f"{diag.get('v_b_score', 0.0):.3f}",
+                                            'V_l Score': f"{diag.get('v_l_score', 0.0):.3f}",
+                                            'Status': "🚩" if diag.get('is_outlier', False) else "⚖️"
+                                        })
+                                        flagged_count += 1
+                                        
+                                        # Limit display to first 20 flagged rows
+                                        if flagged_count >= 20:
+                                            break
                                 
                                 if diagnostics_data:
                                     df_diagnostics = pd.DataFrame(diagnostics_data)
                                     st.dataframe(df_diagnostics, use_container_width=True)
                                     
-                                    if len(row_diagnostics) > 20:
-                                        st.caption(f"Showing first 20 of {len(row_diagnostics)} processed rows...")
+                                    # Count total flagged rows in this iteration
+                                    total_flagged = sum(1 for diag in row_diagnostics 
+                                                      if diag.get('decision', '').lower() in ['flagged', 'down-weighted'])
+                                    
+                                    if total_flagged > 20:
+                                        st.caption(f"Showing first 20 of {total_flagged} flagged rows requiring attention...")
+                                    elif total_flagged > 0:
+                                        st.caption(f"Showing all {total_flagged} rows requiring attention")
+                                else:
+                                    st.success("✅ No problematic rows found in this iteration - all data points passed quality checks!")
                                 
                                 # Logic rule failures
                                 logic_failures = iter_data.get('logic_failures', [])
@@ -1481,10 +1499,10 @@ class SREEDashboard:
         with col2:
             st.markdown("""
             **🔍 What This Shows**:
-            - Which specific rows had low confidence scores
-            - What actions were taken (reweight, flag, retain)
-            - How the system improved block by block
-            - Complete audit trail of all decisions
+            - Only rows requiring attention (flagged/down-weighted)
+            - Specific reasons why each row needs improvement
+            - Clear actions taken by the system
+            - Focused insights for dataset optimization
             """)
 
     def run(self):
