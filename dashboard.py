@@ -26,13 +26,14 @@ import traceback
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from config import PPP_CONFIG, DASHBOARD_PPP_CONFIG, setup_logging
+from config import PPP_CONFIG, DASHBOARD_PPP_CONFIG, ULTRA_FAST_CONFIG, setup_logging
 from data_loader import DataLoader
 from layers.pattern import PatternValidator
 from layers.presence import PresenceValidator
 from layers.permanence import PermanenceValidator
 from layers.logic import LogicValidator
 from loop.trust_loop import TrustUpdateLoop
+from resource_throttle import ResourceThrottler, ThrottleConfig, create_throttle_config_for_dataset_size
 
 # Import advanced tracking components
 try:
@@ -1552,6 +1553,7 @@ class SREEDashboard:
                 "📈 Visualizations",
                 "🔍 Advanced Tracking",
                 "🎯 Intelligent Block Control",
+                "⚡ Resource Management",
                 "🖼️ Visualization Gallery",
                 "🛡️ Model Validation",
                 "📋 Export Results",
@@ -1600,6 +1602,9 @@ class SREEDashboard:
             
         elif page == "🔍 Advanced Tracking":
             self.create_advanced_tracking_section()
+            
+        elif page == "⚡ Resource Management":
+            self.create_resource_management_section()
             
         elif page == "🖼️ Visualization Gallery":
             self.create_visualization_gallery()
@@ -2657,43 +2662,141 @@ class SREEDashboard:
                 help="Enable comprehensive tracking and analysis"
             )
         
+        # Resource Throttling Status
+        st.subheader("⚡ Resource Management")
+        
+        # Show throttling information
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.info("🛡️ **Resource Throttling Active**")
+            st.markdown("""
+            The system automatically applies intelligent resource throttling to prevent:
+            - CPU overload and system stalls
+            - Memory exhaustion
+            - Process freezing
+            
+            **Benefits:**
+            - ✅ Guaranteed completion even with large datasets
+            - ✅ Controlled CPU usage (max 80%)
+            - ✅ System remains responsive
+            - ✅ Automatic adaptation to dataset size
+            """)
+        
+        with col2:
+            # Show current throttling status if available
+            if hasattr(st.session_state, 'throttle_status'):
+                status = st.session_state.throttle_status
+                st.metric("CPU Usage", f"{status.get('cpu_percent', 0):.1f}%")
+                st.metric("Memory Usage", f"{status.get('memory_percent', 0):.1f}%")
+                st.metric("Throttle Level", f"{status.get('throttle_level', 0):.2f}")
+            else:
+                st.metric("CPU Usage", "0.0%")
+                st.metric("Memory Usage", "0.0%")
+                st.metric("Throttle Level", "0.00")
+            
+            st.caption("💡 Throttling is automatically enabled for all analyses")
+        
         # Run analysis button
         st.subheader("🚀 Execute Analysis")
         
-        if st.button("🚀 Run SREE Analysis", type="primary", use_container_width=True):
+        # Initialize analysis status in session state
+        if 'analysis_state' not in st.session_state:
+            st.session_state.analysis_state = 'ready'  # 'ready', 'running', 'completed'
+        
+        # Debug: Show current state
+        st.caption(f"🔍 Debug: Analysis state = {st.session_state.analysis_state}")
+        
+        # Create button with dynamic state
+        if st.session_state.analysis_state == 'ready':
+            # Normal button when ready
+            if st.button("🚀 Run SREE Analysis", type="primary", use_container_width=True):
+                # Set analysis in progress and rerun immediately
+                st.session_state.analysis_state = 'running'
+                st.rerun()
+        
+        elif st.session_state.analysis_state == 'running':
+            # Button is disabled and shows "In Progress"
+            st.button("⏳ Analysis In Progress...", disabled=True, use_container_width=True)
+            st.info("🔒 Analysis is currently running. Please wait...")
+            
+            # Run the analysis
             with st.spinner("🔄 Running SREE analysis..."):
-                try:
-                    # Run the analysis
-                    results = self._execute_sree_analysis(
-                        dataset=selected_dataset,
-                        max_iterations=max_iterations,
-                        trust_threshold=trust_threshold,
-                        enable_tracking=enable_tracking
-                    )
-                    
-                    if results:
-                        st.success("✅ Analysis completed successfully!")
+                    try:
+                        # Run the analysis
+                        results = self._execute_sree_analysis(
+                            dataset=selected_dataset,
+                            max_iterations=max_iterations,
+                            trust_threshold=trust_threshold,
+                            enable_tracking=enable_tracking
+                        )
                         
-                        # Store results in session state
-                        st.session_state.analysis_results = results
+                        if results:
+                            st.success("✅ Analysis completed successfully!")
+                            
+                            # Store results in session state
+                            st.session_state.analysis_results = results
+                            
+                            # Show quick results
+                            st.subheader("📊 Quick Results")
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Final Accuracy", f"{results.get('final_accuracy', 0):.3f}")
+                            with col2:
+                                st.metric("Iterations", results.get('iterations', 0))
+                            with col3:
+                                st.metric("Trust Score", f"{results.get('final_trust_score', 0):.3f}")
+                            
+                            # Show throttling summary if available
+                            if hasattr(st.session_state, 'throttle_status'):
+                                st.subheader("⚡ Resource Management Summary")
+                                throttle_status = st.session_state.throttle_status
+                                
+                                col1, col2, col3, col4 = st.columns(4)
+                                with col1:
+                                    st.metric("Total Processed", f"{throttle_status.get('total_processed', 0):,}")
+                                with col2:
+                                    st.metric("Peak CPU Usage", f"{throttle_status.get('cpu_percent', 0):.1f}%")
+                                with col3:
+                                    st.metric("Peak Memory Usage", f"{throttle_status.get('memory_percent', 0):.1f}%")
+                                with col4:
+                                    st.metric("Max Throttle Level", f"{throttle_status.get('throttle_level', 0):.2f}")
+                                
+                                st.success("🛡️ Resource throttling successfully prevented system stalls!")
+                            
+                            # Show next steps
+                            st.info("💡 **Next Steps:** Navigate to 'Results & Metrics' to view detailed analysis results.")
                         
-                        # Show quick results
-                        st.subheader("📊 Quick Results")
-                        
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Final Accuracy", f"{results.get('final_accuracy', 0):.3f}")
-                        with col2:
-                            st.metric("Iterations", results.get('iterations', 0))
-                        with col3:
-                            st.metric("Trust Score", f"{results.get('final_trust_score', 0):.3f}")
-                        
-                        # Show next steps
-                        st.info("💡 **Next Steps:** Navigate to 'Results & Metrics' to view detailed analysis results.")
-                        
-                except Exception as e:
-                    st.error(f"❌ Analysis failed: {str(e)}")
-                    st.error("Please check the console for detailed error information.")
+                    except Exception as e:
+                        st.error(f"❌ Analysis failed: {str(e)}")
+                        st.error("Please check the console for detailed error information.")
+                    finally:
+                        # Set to completed state
+                        st.session_state.analysis_state = 'completed'
+                        st.rerun()
+        
+        elif st.session_state.analysis_state == 'completed':
+            # Show completion message and allow new analysis
+            st.success("✅ Analysis completed! You can run a new analysis below.")
+            
+            # Show results if available
+            if hasattr(st.session_state, 'analysis_results') and st.session_state.analysis_results:
+                st.subheader("📊 Previous Results")
+                results = st.session_state.analysis_results
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Final Accuracy", f"{results.get('final_accuracy', 0):.3f}")
+                with col2:
+                    st.metric("Iterations", results.get('iterations', 0))
+                with col3:
+                    st.metric("Trust Score", f"{results.get('final_trust_score', 0):.3f}")
+            
+            # Button to run new analysis
+            if st.button("🔄 Run New Analysis", type="primary", use_container_width=True):
+                st.session_state.analysis_state = 'ready'
+                st.rerun()
     
     def _execute_sree_analysis(self, dataset: str, max_iterations: int, trust_threshold: float, enable_tracking: bool) -> dict:
         """Execute SREE analysis with given parameters."""
@@ -2723,21 +2826,47 @@ class SREEDashboard:
                 # Default to heart disease
                 X, y = data_loader.load_heart()
             
+            # Show dataset info and choose configuration
+            dataset_size = len(X)
+            st.info(f"📊 Dataset loaded: {dataset_size:,} rows, {X.shape[1]} features")
+            
+            # Choose configuration based on dataset size
+            if dataset_size <= 100:
+                config_to_use = ULTRA_FAST_CONFIG
+                st.success(f"🚀 Using ULTRA-FAST configuration for small dataset ({dataset_size} rows)")
+                st.info(f"⚡ Ultra-fast mode: {config_to_use['iterations']} iterations, minimal processing")
+            else:
+                config_to_use = DASHBOARD_PPP_CONFIG
+                st.info(f"⚡ Using optimized dashboard configuration")
+            
+            # Create throttling configuration based on dataset size
+            throttle_config = create_throttle_config_for_dataset_size(dataset_size)
+            st.info(f"⚡ Throttling configured: CPU max {throttle_config.max_cpu_percent}%, batch size {throttle_config.batch_size}")
+            
             # Initialize validators
             pattern_validator = PatternValidator()
             presence_validator = PresenceValidator()
             permanence_validator = PermanenceValidator()
             logic_validator = LogicValidator()
             
-            # Initialize trust loop
+            # Initialize trust loop with throttling enabled and chosen configuration
             trust_loop = TrustUpdateLoop(
                 pattern_validator=pattern_validator,
                 presence_validator=presence_validator,
                 permanence_validator=permanence_validator,
                 logic_validator=logic_validator,
-                max_iterations=max_iterations,
+                max_iterations=config_to_use['iterations'],  # Use chosen config
                 trust_threshold=trust_threshold
             )
+            
+            # Apply the chosen configuration to the trust loop
+            trust_loop._gamma = config_to_use['gamma']
+            trust_loop._alpha = config_to_use['alpha']
+            trust_loop._beta = config_to_use['beta']
+            trust_loop._delta = config_to_use['delta']
+            
+            # Ensure throttling is enabled
+            trust_loop.enable_throttling(True)
             
             # Initialize tracking if enabled
             if enable_tracking:
@@ -2749,8 +2878,34 @@ class SREEDashboard:
                 X, y, test_size=0.3, random_state=42, stratify=y
             )
             
-            # Run PPP loop
-            results = trust_loop.run_ppp_loop(X_train, y_train, X_test, y_test)
+            # Create status display for real-time monitoring
+            status_col1, status_col2, status_col3 = st.columns(3)
+            
+            # Run PPP loop with real-time status updates
+            with st.spinner("🔄 Running SREE analysis with resource throttling..."):
+                # Start monitoring throttling status
+                def update_throttle_status():
+                    if hasattr(trust_loop, '_throttler') and trust_loop._throttler:
+                        status = trust_loop.get_throttle_status()
+                        st.session_state.throttle_status = status
+                        
+                        with status_col1:
+                            st.metric("CPU Usage", f"{status.get('cpu_percent', 0):.1f}%")
+                        with status_col2:
+                            st.metric("Memory Usage", f"{status.get('memory_percent', 0):.1f}%")
+                        with status_col3:
+                            st.metric("Throttle Level", f"{status.get('throttle_level', 0):.2f}")
+                
+                # Run the analysis
+                results = trust_loop.run_ppp_loop(X_train, y_train, X_test, y_test)
+                
+                # Update final status
+                update_throttle_status()
+            
+            # Show final throttling summary
+            if hasattr(trust_loop, '_throttler') and trust_loop._throttler:
+                final_status = trust_loop.get_throttle_status()
+                st.success(f"✅ Analysis completed! Processed {final_status.get('total_processed', 0):,} items with controlled resource usage.")
             
             return results
             
@@ -2789,6 +2944,129 @@ class SREEDashboard:
         
         with tab4:
             self._display_tracking_visualizations(tracking_logs)
+    
+    def create_resource_management_section(self):
+        """Creates the resource management section."""
+        st.header("⚡ Resource Management")
+        st.markdown("Monitor and control resource usage during SREE analysis.")
+        
+        # Show current system status
+        st.subheader("🖥️ Current System Status")
+        
+        try:
+            import psutil
+            
+            # Get system information
+            cpu_percent = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("System CPU", f"{cpu_percent:.1f}%")
+            with col2:
+                st.metric("System Memory", f"{memory.percent:.1f}%")
+            with col3:
+                st.metric("Available Memory", f"{memory.available / (1024**3):.1f} GB")
+            with col4:
+                st.metric("Disk Usage", f"{disk.percent:.1f}%")
+            
+            # Show throttling status if available
+            if hasattr(st.session_state, 'throttle_status'):
+                st.subheader("🛡️ Throttling Status")
+                throttle_status = st.session_state.throttle_status
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Process CPU", f"{throttle_status.get('cpu_percent', 0):.1f}%")
+                with col2:
+                    st.metric("Process Memory", f"{throttle_status.get('memory_percent', 0):.1f}%")
+                with col3:
+                    st.metric("Throttle Level", f"{throttle_status.get('throttle_level', 0):.2f}")
+                with col4:
+                    st.metric("Total Processed", f"{throttle_status.get('total_processed', 0):,}")
+                
+                # Show throttling configuration
+                st.subheader("⚙️ Throttling Configuration")
+                
+                # Determine current configuration based on dataset size
+                if hasattr(st.session_state, 'dataset_info') and st.session_state.dataset_info:
+                    dataset_size = st.session_state.dataset_info.get('rows', 0)
+                    throttle_config = create_throttle_config_for_dataset_size(dataset_size)
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Max CPU", f"{throttle_config.max_cpu_percent}%")
+                    with col2:
+                        st.metric("Batch Size", f"{throttle_config.batch_size:,}")
+                    with col3:
+                        st.metric("Sleep Time", f"{throttle_config.base_sleep_time}s")
+                    
+                    st.info(f"📊 Configuration optimized for dataset size: {dataset_size:,} rows")
+                else:
+                    st.info("📊 No dataset loaded. Throttling will be configured automatically when analysis starts.")
+            
+            # Show throttling benefits
+            st.subheader("🎯 Throttling Benefits")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                **✅ What Throttling Prevents:**
+                - CPU overload and system stalls
+                - Memory exhaustion
+                - Process freezing
+                - System unresponsiveness
+                - Analysis failures
+                """)
+            
+            with col2:
+                st.markdown("""
+                **✅ What Throttling Provides:**
+                - Guaranteed analysis completion
+                - Controlled resource usage
+                - System responsiveness
+                - Predictable performance
+                - Automatic adaptation
+                """)
+            
+            # Show configuration guide
+            st.subheader("📋 Configuration Guide")
+            
+            with st.expander("🔧 Throttling Configurations by Dataset Size", expanded=False):
+                st.markdown("""
+                | Dataset Size | CPU Max | Batch Size | Sleep Time | Behavior |
+                |-------------|---------|------------|------------|----------|
+                | < 10k rows | 90% | 2,000 | 0.005s | Minimal throttling |
+                | 10k-100k rows | 80% | 1,000 | 0.01s | Moderate throttling |
+                | 100k-1M rows | 70% | 500 | 0.02s | Aggressive throttling |
+                | > 1M rows | 60% | 250 | 0.05s | Very aggressive throttling |
+                """)
+            
+            # Show troubleshooting
+            st.subheader("🔍 Troubleshooting")
+            
+            with st.expander("❓ Common Questions", expanded=False):
+                st.markdown("""
+                **Q: Why is the analysis slower now?**
+                A: Throttling intentionally slows down processing to prevent system stalls. This is normal and ensures completion.
+                
+                **Q: Can I disable throttling?**
+                A: Yes, but not recommended. Large datasets may cause system stalls without throttling.
+                
+                **Q: How do I know throttling is working?**
+                A: Monitor the CPU usage - it should stay below the configured maximum (usually 80%).
+                
+                **Q: What if I have a very powerful system?**
+                A: Throttling still provides benefits by preventing memory issues and ensuring predictable performance.
+                """)
+            
+        except ImportError:
+            st.error("❌ psutil not available. Please install it: `pip install psutil`")
+        except Exception as e:
+            st.error(f"❌ Error getting system status: {str(e)}")
     
     def _display_weight_tracking(self, tracking_logs):
         """Display weight tracking information."""

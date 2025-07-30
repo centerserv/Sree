@@ -53,8 +53,33 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
     """
     logger = logging.getLogger(__name__)
     
-    # Use optimized configuration for dashboard for faster processing
-    if use_dashboard_config or "custom" in dataset_name.lower():
+    # Use optimized configuration based on dataset size
+    dataset_size = len(X)
+    if dataset_size <= 50:
+        from config import SUPER_FAST_CONFIG as config_to_use
+        max_blocks = 1  # Single block for super-fast processing
+        # Maintain quality thresholds - only relax slightly for speed
+        accuracy_threshold = max(accuracy_threshold, 0.85)  # Maintain minimum quality
+        trust_threshold = max(trust_threshold, 0.75)        # Maintain minimum quality
+        entropy_threshold = min(entropy_threshold, 2.0)     # Maintain maximum quality
+        required_consecutive_ok = 1  # Stop after first block
+        logger.info(f"⚡ Using SUPER-FAST configuration for very small dataset ({dataset_size} rows)")
+        logger.info(f"🚀 Super-fast mode: {config_to_use['iterations']} iteration, minimal processing")
+        logger.info(f"🏃 Single block: {max_blocks} (instead of 25)")
+        logger.info(f"🎯 Quality-maintained thresholds: Accuracy≥{accuracy_threshold:.2f}, Trust≥{trust_threshold:.2f}, Entropy≤{entropy_threshold:.2f}")
+    elif dataset_size <= 100:
+        from config import ULTRA_FAST_CONFIG as config_to_use
+        max_blocks = min(max_blocks, 2)  # Very few blocks for ultra-fast processing
+        # Maintain quality thresholds - only relax slightly for speed
+        accuracy_threshold = max(accuracy_threshold, 0.90)  # Maintain minimum quality
+        trust_threshold = max(trust_threshold, 0.80)        # Maintain minimum quality
+        entropy_threshold = min(entropy_threshold, 1.8)     # Maintain maximum quality
+        required_consecutive_ok = 1  # Stop after first good block
+        logger.info(f"🚀 Using ULTRA-FAST configuration for small dataset ({dataset_size} rows)")
+        logger.info(f"⚡ Ultra-fast mode: {config_to_use['iterations']} iterations, minimal processing")
+        logger.info(f"🏃 Reduced max blocks: {max_blocks} (instead of 25)")
+        logger.info(f"🎯 Quality-maintained thresholds: Accuracy≥{accuracy_threshold:.2f}, Trust≥{trust_threshold:.2f}, Entropy≤{entropy_threshold:.2f}")
+    elif use_dashboard_config or "custom" in dataset_name.lower():
         from config import DASHBOARD_PPP_CONFIG as config_to_use
         max_blocks = min(max_blocks, 8)  # Limit blocks for dashboard responsiveness
         logger.info(f"⚡ Using optimized dashboard configuration for faster processing")

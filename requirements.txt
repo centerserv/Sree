@@ -16,6 +16,7 @@ openml==0.14.1
 # Utilities
 tqdm==4.66.1
 joblib==1.3.2
+psutil==5.9.6
 
 # Interactive tools
 streamlit==1.28.1
