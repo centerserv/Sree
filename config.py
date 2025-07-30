@@ -130,20 +130,125 @@ PPP_CONFIG = {
     "initial_trust": 0.85, # Higher initial trust for better starting point
     "initial_state": 0.80, # Higher initial state
     "presence": {
-        "entropy_threshold": 1.5,    # Lower entropy threshold for more refinement
-        "min_confidence": 0.5,  # Aumentado para forçar mais confiança
-        "entropy_penalty": 5.0,  # Penalização mais agressiva
-        "refinement_factor": 0.85    # More aggressive refinement
+        "entropy_threshold": 2.2,    # Higher threshold - flag only very high entropy
+        "min_confidence": 0.3,  # Lower threshold - flag only very low confidence
+        "entropy_penalty": 3.0,  # Moderate penalty
+        "refinement_factor": 0.90    # Less aggressive refinement
     },
     "permanence": {
         "hash_algorithm": "sha256",  # Hash algorithm for logging
         "block_size": 40,            # Smaller block size for more blocks
-        "consistency_threshold": 0.75 # Lower threshold for more blocks
+        "min_blocks": 2,             # Minimum blocks required
+        "max_deviation": 0.02,       # Maximum allowed deviation
+        "convergence_threshold": 0.98, # Higher convergence threshold
+        "consistency_threshold": 0.75  # Consistency threshold for permanence validation
     },
     "logic": {
+        "min_conditions": 3,         # Minimum logical conditions
+        "max_rules": 15,             # Maximum logical rules
+        "confidence_threshold": 0.75, # Lower threshold - flag only very low confidence
+        "support_threshold": 0.25,   # Higher support threshold - fewer rules
         "consistency_weight": 0.7,   # Higher weight for consistency validation
-        "confidence_threshold": 0.60, # Lower threshold for more processing
-        "max_inconsistencies": 0.20  # Fewer allowed inconsistencies
+        "max_inconsistencies": 0.30  # More allowed inconsistencies
+    }
+}
+
+# Dashboard optimized PPP configuration for faster processing
+DASHBOARD_PPP_CONFIG = {
+    "iterations": 8,   # Reduced from 30 to 8 for faster dashboard response
+    "gamma": 0.5,      # Slightly higher for faster convergence
+    "alpha": 0.5,      # Slightly higher for faster convergence  
+    "beta": 0.6,       # Reduced slightly for speed
+    "delta": 0.3,      # Reduced for speed
+    "initial_trust": 0.85, # Same as original
+    "initial_state": 0.80, # Same as original
+    "presence": {
+        "entropy_threshold": 2.0,    # Higher threshold - flag only very high entropy
+        "min_confidence": 0.35,      # Lower threshold - flag only very low confidence
+        "entropy_penalty": 2.5,      # Moderate penalty
+        "refinement_factor": 0.85    # Less aggressive refinement
+    },
+    "permanence": {
+        "hash_algorithm": "sha256",
+        "block_size": 50,            # Larger block size for speed
+        "min_blocks": 2,
+        "max_deviation": 0.03,       # Slightly more tolerant
+        "convergence_threshold": 0.95, # Slightly lower for speed
+        "consistency_threshold": 0.70  # Lower threshold for faster processing
+    },
+    "logic": {
+        "min_conditions": 2,         # Reduced for speed
+        "max_rules": 10,             # Reduced for speed
+        "confidence_threshold": 0.70, # Lower threshold - flag only very low confidence
+        "support_threshold": 0.30,   # Higher support threshold - fewer rules
+        "consistency_weight": 0.6,   # Lower weight for speed
+        "max_inconsistencies": 0.35  # More tolerant for speed
+    }
+}
+
+# Ultra-fast configuration for small datasets (100 rows or less)
+ULTRA_FAST_CONFIG = {
+    "iterations": 4,   # Balanced iterations for speed and quality
+    "gamma": 0.6,      # Balanced for convergence and quality
+    "alpha": 0.6,      # Balanced for convergence and quality
+    "beta": 0.6,       # Balanced permanence processing
+    "delta": 0.3,      # Balanced logic processing
+    "initial_trust": 0.85,
+    "initial_state": 0.80,
+    "presence": {
+        "entropy_threshold": 2.2,    # Maintain quality threshold
+        "min_confidence": 0.30,      # Maintain quality threshold
+        "entropy_penalty": 2.5,      # Balanced penalty
+        "refinement_factor": 0.85    # Balanced refinement
+    },
+    "permanence": {
+        "hash_algorithm": "md5",     # Faster hash algorithm
+        "block_size": 100,           # Large block size for speed
+        "min_blocks": 1,             # Minimal blocks
+        "max_deviation": 0.03,       # Maintain quality
+        "convergence_threshold": 0.95, # Maintain quality
+        "consistency_threshold": 0.75  # Maintain quality
+    },
+    "logic": {
+        "min_conditions": 2,         # Maintain quality
+        "max_rules": 8,              # Balanced rules
+        "confidence_threshold": 0.75, # Maintain quality
+        "support_threshold": 0.25,   # Balanced threshold
+        "consistency_weight": 0.6,   # Balanced weight
+        "max_inconsistencies": 0.35  # Maintain quality
+    }
+}
+
+# Super-fast configuration for very small datasets (50 rows or less)
+SUPER_FAST_CONFIG = {
+    "iterations": 2,   # Minimal iterations for speed while maintaining quality
+    "gamma": 0.6,      # Balanced for convergence and quality
+    "alpha": 0.6,      # Balanced for convergence and quality
+    "beta": 0.5,       # Balanced permanence processing
+    "delta": 0.3,      # Balanced logic processing
+    "initial_trust": 0.85,
+    "initial_state": 0.80,
+    "presence": {
+        "entropy_threshold": 2.0,    # Maintain quality threshold
+        "min_confidence": 0.30,      # Maintain quality threshold
+        "entropy_penalty": 2.0,      # Balanced penalty
+        "refinement_factor": 0.8     # Balanced refinement
+    },
+    "permanence": {
+        "hash_algorithm": "md5",     # Faster hash algorithm
+        "block_size": 50,            # Process all data at once
+        "min_blocks": 1,             # Single block
+        "max_deviation": 0.05,       # Maintain quality
+        "convergence_threshold": 0.90, # Maintain quality
+        "consistency_threshold": 0.70  # Maintain quality
+    },
+    "logic": {
+        "min_conditions": 2,         # Maintain quality
+        "max_rules": 5,              # Balanced rules
+        "confidence_threshold": 0.70, # Maintain quality
+        "support_threshold": 0.30,   # Balanced threshold
+        "consistency_weight": 0.5,   # Balanced weight
+        "max_inconsistencies": 0.40  # Maintain quality
     }
 }
 

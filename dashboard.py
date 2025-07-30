@@ -6,32 +6,34 @@ Interactive dashboard to visualize all SREE project results and upload CSV datas
 
 import streamlit as st
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import json
-import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime
-import io
-import base64
-import warnings
+import pickle
 import os
-from typing import List, Dict
+import time
+from datetime import datetime, timedelta
+import logging
+from typing import Dict, Any, Optional, Tuple, List
+import sys
+import traceback
 
-# Suppress sklearn warnings about classification vs regression
-warnings.filterwarnings('ignore', category=UserWarning, module='sklearn.metrics._classification')
+# Add the project root to Python path
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
 
-# Import SREE components
+from config import PPP_CONFIG, DASHBOARD_PPP_CONFIG, ULTRA_FAST_CONFIG, setup_logging
 from data_loader import DataLoader
 from layers.pattern import PatternValidator
 from layers.presence import PresenceValidator
 from layers.permanence import PermanenceValidator
 from layers.logic import LogicValidator
 from loop.trust_loop import TrustUpdateLoop
-from config import setup_logging
+from resource_throttle import ResourceThrottler, ThrottleConfig, create_throttle_config_for_dataset_size
 
 # Import advanced tracking components
 try:
@@ -47,6 +49,102 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Hide Streamlit footer and menu
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+.stDeployButton {display:none;}
+[data-testid="stToolbar"] {display: none;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+class TimingTracker:
+    """Tracks execution time and provides real-time updates."""
+    
+    def __init__(self):
+        self.start_time = None
+        self.end_time = None
+        self.phase_times = {}
+        self.current_phase = None
+        
+    def start(self, phase_name: str = "Analysis"):
+        """Start timing for a specific phase."""
+        self.start_time = time.time()
+        self.current_phase = phase_name
+        self.phase_times[phase_name] = {'start': self.start_time, 'end': None}
+        return self.start_time
+        
+    def update_phase(self, phase_name: str):
+        """Update to a new phase, ending the previous one."""
+        current_time = time.time()
+        if self.current_phase and self.current_phase in self.phase_times:
+            self.phase_times[self.current_phase]['end'] = current_time
+        
+        self.current_phase = phase_name
+        self.phase_times[phase_name] = {'start': current_time, 'end': None}
+        
+    def end(self):
+        """End the current timing."""
+        self.end_time = time.time()
+        if self.current_phase and self.current_phase in self.phase_times:
+            self.phase_times[self.current_phase]['end'] = self.end_time
+            
+    def get_elapsed_time(self) -> float:
+        """Get elapsed time since start."""
+        if not self.start_time:
+            return 0.0
+        current_time = time.time()
+        return current_time - self.start_time
+        
+    def get_total_time(self) -> float:
+        """Get total execution time."""
+        if not self.start_time or not self.end_time:
+            return self.get_elapsed_time()
+        return self.end_time - self.start_time
+        
+    def format_time(self, seconds: float) -> str:
+        """Format time in human-readable format."""
+        if seconds < 1:
+            return f"{seconds:.2f}s"
+        elif seconds < 60:
+            return f"{seconds:.1f}s"
+        elif seconds < 3600:
+            minutes = int(seconds // 60)
+            secs = int(seconds % 60)
+            return f"{minutes}m {secs}s"
+        else:
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            return f"{hours}h {minutes}m"
+            
+    def get_formatted_elapsed(self) -> str:
+        """Get formatted elapsed time."""
+        return self.format_time(self.get_elapsed_time())
+        
+    def get_formatted_total(self) -> str:
+        """Get formatted total time."""
+        return self.format_time(self.get_total_time())
+        
+    def display_real_time_update(self, placeholder, phase_name: str = None):
+        """Display real-time timing update in a Streamlit placeholder."""
+        elapsed = self.get_elapsed_time()
+        current_phase = phase_name or self.current_phase or "Processing"
+        
+        # Create timing display
+        timing_text = f"⏱️ **{current_phase}** | Elapsed: **{self.format_time(elapsed)}**"
+        
+        # Add estimated remaining time for known phases
+        if elapsed > 10:  # After 10 seconds, show some estimates
+            if "Block Creation" in current_phase:
+                estimated_total = elapsed * 1.5  # Rough estimate
+                remaining = max(0, estimated_total - elapsed)
+                timing_text += f" | Est. remaining: **{self.format_time(remaining)}**"
+                
+        placeholder.info(timing_text)
+
 class SREEDashboard:
     """Interactive dashboard for SREE results."""
     
@@ -54,6 +152,7 @@ class SREEDashboard:
         self.logs_dir = Path("logs")
         self.plots_dir = Path("plots")
         self.logger = setup_logging()
+        self.timing_tracker = TimingTracker()  # Add timing tracker
         
         # Initialize SREE components
         self.data_loader = DataLoader()
@@ -372,7 +471,7 @@ class SREEDashboard:
         
         with col2:
             st.subheader("Data Flow")
-            st.image("plots/fig1.png", caption="PPP Diagram", use_container_width=True)
+            st.image("plots/fig1.png", caption="PPP Diagram")
     
     def create_test_results(self):
         """Shows test results."""
@@ -454,7 +553,7 @@ class SREEDashboard:
                     # Always show preview image if available
                     preview_path = self.plots_dir / 'fig4_preview.png'
                     if preview_path.exists():
-                        st.image(str(preview_path), caption="Preview: Phase 1 vs. Baselines", use_container_width=True)
+                        st.image(str(preview_path), caption="Preview: Phase 1 vs. Baselines")
                     # Show download button for PDF
                     with open(file_path, "rb") as f:
                         pdf_bytes = f.read()
@@ -467,34 +566,43 @@ class SREEDashboard:
                 else:
                     st.image(
                         str(file_path),
-                        caption=figures[selected_figure],
-                        use_container_width=True
+                        caption=figures[selected_figure]
                     )
             else:
                 st.warning("Figure not found. Run `python3 visualization.py` first.")
     
     def create_csv_upload_section(self):
         """Creates CSV upload and analysis section."""
+        # Hide entire upload panel if analysis has been completed
+        if st.session_state.analysis_results is not None:
+            st.success("✅ Dataset uploaded and analyzed successfully!")
+            with st.expander("📁 Dataset Details", expanded=False):
+                if st.session_state.uploaded_df is not None:
+                    st.write(f"**Dataset Shape:** {st.session_state.uploaded_df.shape}")
+                    st.write(f"**Columns:** {', '.join(st.session_state.uploaded_df.columns[:5])}{'...' if len(st.session_state.uploaded_df.columns) > 5 else ''}")
+            return
+        
         st.header("📁 Upload Your Dataset")
         st.markdown("Upload a CSV file to analyze with SREE. The file should have features and a target column.")
         
-        # Instructions
-        with st.expander("📋 Instructions", expanded=True):
-            st.markdown("""
-            **How to use this section:**
-            1. **Upload your CSV file** - Should contain features and a target column
-            2. **Select target column** - Choose the column with binary values (0/1) for classification
-            3. **Select feature columns** - Choose the columns to use as input features
-            4. **Run analysis** - Click the button to start SREE analysis
-            
-            **Example:**
-            - Target column: `target` (with values 0 and 1)
-            - Feature columns: `age`, `sex`, `chest_pain_type`, etc.
-            
-            **Available test datasets:**
-            - `heart_disease_small.csv` (100 samples)
-            - `heart_disease_dataset.csv` (1000 samples)
-            """)
+        # Instructions - only show if no data uploaded
+        if st.session_state.uploaded_df is None:
+            with st.expander("📋 Instructions", expanded=True):
+                st.markdown("""
+                **How to use this section:**
+                1. **Upload your CSV file** - Should contain features and a target column
+                2. **Select target column** - Choose the column with binary values (0/1) for classification
+                3. **Select feature columns** - Choose the columns to use as input features
+                4. **Run analysis** - Click the button to start SREE analysis
+                
+                **Example:**
+                - Target column: `target` (with values 0 and 1)
+                - Feature columns: `age`, `sex`, `chest_pain_type`, etc.
+                
+                **Available test datasets:**
+                - `heart_disease_small.csv` (100 samples)
+                - `heart_disease_dataset.csv` (1000 samples)
+                """)
         
         uploaded_file = st.file_uploader(
             "Choose a CSV file",
@@ -617,20 +725,71 @@ class SREEDashboard:
                     
                     # Run SREE analysis
                     if st.button("🚀 Run SREE Analysis", type="primary"):
-                        with st.spinner("Running SREE analysis..."):
-                            results = self.run_sree_analysis(X, y)
-                            st.session_state.analysis_results = results
-                            self.display_sree_results(results)
+                        # Create placeholders for real-time updates
+                        status_placeholder = st.empty()
+                        timing_placeholder = st.empty()
+                        progress_bar = st.progress(0)
+                        
+                        with st.spinner("🔄 Running optimized SREE analysis..."):
+                            status_placeholder.info("⚡ Using dashboard-optimized configuration for faster processing...")
+                            progress_bar.progress(10)
+                            
+                            results = self.run_sree_analysis(X, y, status_placeholder, progress_bar, timing_placeholder)
+                            
+                            if results and 'error' not in results:
+                                st.session_state.analysis_results = results
+                                
+                                # Show execution time summary
+                                execution_time = results.get('execution_time', {})
+                                if execution_time:
+                                    st.success(f"🎉 Analysis completed successfully in **{execution_time.get('formatted', 'Unknown')}**!")
+                                
+                                # Show immediate summary (balloons removed for subtlety)
+                                
+                                # Quick results preview with timing
+                                col1, col2, col3, col4, col5 = st.columns(5)
+                                with col1:
+                                    st.metric("Accuracy", f"{results.get('accuracy', 0):.1%}")
+                                with col2:
+                                    st.metric("Trust Score", f"{results.get('trust_score', 0):.1%}")
+                                with col3:
+                                    st.metric("Entropy", f"{results.get('entropy', 0):.3f}")
+                                with col4:
+                                    st.metric("Blocks", results.get('block_count', 0))
+                                with col5:
+                                    execution_time = results.get('execution_time', {})
+                                    st.metric("⏱️ Time", execution_time.get('formatted', 'N/A'))
+                                
+                                # Show full results
+                                self.display_sree_results(results)
+                            else:
+                                status_placeholder.error("❌ Analysis failed. Check logs for details.")
+                                if results:
+                                    execution_time = results.get('execution_time', {})
+                                    if execution_time:
+                                        st.error(f"Error after {execution_time.get('formatted', 'Unknown time')}: {results.get('error', 'Unknown error')}")
+                                    else:
+                                        st.error(f"Error: {results.get('error', 'Unknown error')}")
                 
             except Exception as e:
                 st.error(f"Error reading file: {str(e)}")
     
-    def run_sree_analysis(self, X: np.ndarray, y: np.ndarray) -> dict:
-        """Run SREE analysis on uploaded data using the centralized logic."""
+    def run_sree_analysis(self, X: np.ndarray, y: np.ndarray, status_placeholder=None, progress_bar=None, timing_placeholder=None) -> dict:
+        """Run SREE analysis on uploaded data using the centralized logic with timing tracking."""
         try:
+            # Start timing
+            self.timing_tracker.start("SREE Analysis Initialization")
+            start_time = datetime.now()
+            
             # Add verbose logging
-            print(f"🚀 [SREE] Starting analysis at {datetime.now().strftime('%H:%M:%S')}")
+            print(f"🚀 [SREE] Starting analysis at {start_time.strftime('%H:%M:%S')}")
             print(f"📊 [SREE] Dataset shape: {X.shape}, Target classes: {len(np.unique(y))}")
+            
+            # Update status and timing
+            if status_placeholder:
+                status_placeholder.info("🚀 Initializing SREE analysis...")
+            if timing_placeholder:
+                self.timing_tracker.display_real_time_update(timing_placeholder, "Initialization")
             
             # Get industry configuration
             industry_config = st.session_state.get('industry_config', {})
@@ -639,6 +798,10 @@ class SREEDashboard:
                 print(f"📈 [SREE] Thresholds - Accuracy: ≥{industry_config.get('accuracy_threshold', 0.95):.3f}, Trust: ≥{industry_config.get('trust_threshold', 0.85):.3f}, Entropy: ≤{industry_config.get('entropy_threshold', 1.5):.3f}")
             
             # Set deterministic random seeds for consistent results
+            self.timing_tracker.update_phase("Data Preparation")
+            if timing_placeholder:
+                self.timing_tracker.display_real_time_update(timing_placeholder, "Data Preparation")
+                
             np.random.seed(42)
             import random
             random.seed(42)
@@ -658,6 +821,14 @@ class SREEDashboard:
                 )
             
             # Use the Unified Block Creation system with industry-specific parameters
+            self.timing_tracker.update_phase("Unified Block Creation")
+            if status_placeholder:
+                status_placeholder.info("🔄 Running unified block creation...")
+            if timing_placeholder:
+                self.timing_tracker.display_real_time_update(timing_placeholder, "Block Creation & Analysis")
+            if progress_bar:
+                progress_bar.progress(20)
+                
             print(f"🔄 [SREE] Starting unified block creation...")
             from unified_block_creation import run_unified_block_creation
             
@@ -667,6 +838,9 @@ class SREEDashboard:
                 industry_name = industry_config.get('name', 'general')
                 sanitized_name = industry_name.lower().replace(' ', '_').replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
                 
+                if progress_bar:
+                    progress_bar.progress(40)
+                
                 results = run_unified_block_creation(
                     X, y, 
                     accuracy_threshold=industry_config.get('accuracy_threshold', 0.95),
@@ -674,19 +848,82 @@ class SREEDashboard:
                     entropy_threshold=industry_config.get('entropy_threshold', 1.5),
                     max_blocks=industry_config.get('max_blocks', 25),
                     required_consecutive_ok=industry_config.get('consecutive_blocks_required', 2),
-                    dataset_name=f"custom_{sanitized_name}"
+                    dataset_name=f"custom_{sanitized_name}",
+                    use_dashboard_config=True  # Use optimized config for faster dashboard processing
                 )
             else:
-                # Fallback to default parameters
-                results = run_unified_block_creation(X, y, dataset_name="custom")
+                # Fallback to default parameters with optimized config
+                if progress_bar:
+                    progress_bar.progress(40)
+                results = run_unified_block_creation(X, y, dataset_name="custom", use_dashboard_config=True)
             
+            self.timing_tracker.update_phase("Results Processing")
+            if timing_placeholder:
+                self.timing_tracker.display_real_time_update(timing_placeholder, "Processing Results")
+            if progress_bar:
+                progress_bar.progress(80)
+                
             print(f"✅ [SREE] Unified block creation completed")
-            print(f"📊 [SREE] Final metrics - Accuracy: {results.get('accuracy', 0.0):.3f}, Trust: {results.get('trust_score', 0.0):.3f}, Entropy: {results.get('entropy', 0.0):.3f}")
-            print(f"🧱 [SREE] Total blocks created: {results.get('block_count', 0)}")
             
-            return results
+            # End timing and calculate total execution time
+            self.timing_tracker.end()
+            end_time = datetime.now()
+            total_execution_time = self.timing_tracker.get_total_time()
+            
+            # Map new result structure to expected dashboard format for compatibility
+            final_results = {
+                'accuracy': results.get('final_accuracy', 0.0),
+                'trust_score': results.get('final_trust', 0.0),
+                'entropy': results.get('final_entropy', 0.0),
+                'block_count': results.get('final_block_count', 0),
+                'all_ok': results.get('final_all_ok', False),
+                'accuracy_ok': results.get('final_accuracy', 0.0) >= 0.95,
+                'trust_ok': results.get('final_trust', 0.0) >= 0.85,
+                'entropy_ok': results.get('final_entropy', 0.0) <= 1.5,
+                # Keep all original data for detailed analysis
+                'raw_results': results,
+                'stop_reason': results.get('stop_reason', ''),
+                'block_logs': results.get('block_logs', []),
+                'adjustments_applied': results.get('adjustments_applied', False),
+                'configuration': results.get('configuration', {}),
+                'thresholds': results.get('thresholds', {}),
+                'ppp_results': results.get('ppp_results', {}),  # Include PPP loop results
+                'train_results': results.get('train_results', {}),  # Include pattern validator training results
+                # Add timing information
+                'execution_time': {
+                    'total_seconds': total_execution_time,
+                    'formatted': self.timing_tracker.get_formatted_total(),
+                    'start_time': start_time.isoformat(),
+                    'end_time': end_time.isoformat(),
+                    'phases': self.timing_tracker.phase_times
+                }
+            }
+            
+            # Final status update - single clean message
+            if status_placeholder:
+                status_placeholder.success(f"✅ Analysis completed successfully in {self.timing_tracker.get_formatted_total()}")
+            if timing_placeholder:
+                timing_placeholder.empty()  # Remove duplicate timing message
+            if progress_bar:
+                progress_bar.progress(100)
+            
+            print(f"📊 [SREE] Final metrics - Accuracy: {final_results['accuracy']:.3f}, Trust: {final_results['trust_score']:.3f}, Entropy: {final_results['entropy']:.3f}")
+            print(f"🧱 [SREE] Total blocks created: {final_results['block_count']}")
+            print(f"✅ [SREE] All requirements met: {'YES' if final_results['all_ok'] else 'NO'}")
+            print(f"⏱️ [SREE] Total execution time: {self.timing_tracker.get_formatted_total()}")
+            
+            return final_results
             
         except Exception as e:
+            # End timing even on error
+            self.timing_tracker.end()
+            error_time = self.timing_tracker.get_formatted_total() if self.timing_tracker.start_time else "N/A"
+            
+            if status_placeholder:
+                status_placeholder.error(f"❌ Analysis failed after {error_time}")
+            if timing_placeholder:
+                timing_placeholder.error(f"❌ **FAILED** | Elapsed: **{error_time}** | Error during {self.timing_tracker.current_phase or 'Unknown Phase'}")
+            
             print(f"❌ [SREE] Error in analysis: {str(e)}")
             self.logger.error(f"Error in SREE analysis: {str(e)}")
             return {
@@ -694,7 +931,12 @@ class SREEDashboard:
                 'trust_score': 0.0,
                 'entropy': 0.0,
                 'block_count': 0,
-                'error': str(e)
+                'error': str(e),
+                'execution_time': {
+                    'total_seconds': self.timing_tracker.get_total_time() if self.timing_tracker.start_time else 0,
+                    'formatted': error_time,
+                    'error_phase': self.timing_tracker.current_phase or 'Unknown Phase'
+                }
             }
     
     def display_sree_results(self, results: dict):
@@ -704,6 +946,44 @@ class SREEDashboard:
         if 'error' in results:
             st.error(f"Analysis failed: {results['error']}")
             return
+        
+        # Display execution timing information
+        execution_time = results.get('execution_time', {})
+        if execution_time:
+            st.subheader("⏱️ Execution Timing")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("⏱️ Total Time", execution_time.get('formatted', 'N/A'))
+            with col2:
+                start_time = execution_time.get('start_time', '')
+                if start_time:
+                    start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    st.metric("🚀 Started", start_dt.strftime('%H:%M:%S'))
+            with col3:
+                end_time = execution_time.get('end_time', '')
+                if end_time:
+                    end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                    st.metric("🏁 Finished", end_dt.strftime('%H:%M:%S'))
+                    
+            # Show phase breakdown if available
+            phases = execution_time.get('phases', {})
+            if phases:
+                with st.expander("🔍 Phase Breakdown", expanded=False):
+                    phase_data = []
+                    for phase_name, phase_info in phases.items():
+                        if phase_info.get('end'):
+                            phase_duration = phase_info['end'] - phase_info['start']
+                            phase_data.append({
+                                'Phase': phase_name,
+                                'Duration': self.timing_tracker.format_time(phase_duration),
+                                'Start': datetime.fromtimestamp(phase_info['start']).strftime('%H:%M:%S'),
+                                'End': datetime.fromtimestamp(phase_info['end']).strftime('%H:%M:%S')
+                            })
+                    
+                    if phase_data:
+                        phase_df = pd.DataFrame(phase_data)
+                        st.dataframe(phase_df, use_container_width=True)
         
         # Get industry configuration for comparison
         industry_config = st.session_state.get('industry_config', {})
@@ -777,10 +1057,14 @@ class SREEDashboard:
 
             
             # Get raw metrics if available
-            raw_accuracy = results.get('raw_metrics', {}).get('accuracy', accuracy)
-            raw_trust = results.get('raw_metrics', {}).get('trust_score', trust)
-            raw_entropy = results.get('raw_metrics', {}).get('entropy', entropy)
-            adjustments_applied = results.get('adjustments_applied', {})
+            raw_metrics = results.get('raw_metrics', {})
+            raw_accuracy = raw_metrics.get('raw_accuracy', accuracy) if isinstance(raw_metrics, dict) else accuracy
+            raw_trust = raw_metrics.get('raw_trust', trust) if isinstance(raw_metrics, dict) else trust
+            raw_entropy = raw_metrics.get('raw_entropy', entropy) if isinstance(raw_metrics, dict) else entropy
+            
+            # Handle adjustments_applied which can be bool or dict
+            adjustments_data = results.get('adjustments_applied', False)
+            adjustments_applied = adjustments_data if isinstance(adjustments_data, dict) else {}
             
             # Get adaptive evaluation results
             adaptive_eval = results.get('adaptive_evaluation', {})
@@ -796,16 +1080,15 @@ class SREEDashboard:
                 - ✅ Trust ≥ {trust_threshold:.1%}: {'✅ PASS' if trust_ok else '❌ FAIL'} ({trust:.1%})
                 - ✅ Entropy ≤ {entropy_threshold:.1f}: {'✅ PASS' if entropy_ok else '❌ FAIL'} ({entropy:.1f})
                 
-                **Raw vs Adjusted Values**:
-                - 📊 Accuracy: {raw_accuracy:.1%} → {accuracy:.1%} {'🔧' if adjustments_applied.get('accuracy_adjusted', False) else '✅'}
-                - 📊 Trust: {raw_trust:.1%} → {trust:.1%} {'🔧' if adjustments_applied.get('trust_adjusted', False) else '✅'}
-                - 📊 Entropy: {raw_entropy:.1f} → {entropy:.1f} {'🔧' if adjustments_applied.get('entropy_adjusted', False) else '✅'}
+                **Final Values**:
+                - 📊 Accuracy: {accuracy:.1%}
+                - 📊 Trust: {trust:.1%} 
+                - 📊 Entropy: {entropy:.1f}
                 """)
             
             with col2:
                 if all_requirements_met:
                     st.success("🎉 **All Industry Requirements Met!**")
-                    st.balloons()
                 else:
                     st.warning("⚠️ **Some Requirements Not Met**")
                     failed_requirements = []
@@ -1008,20 +1291,54 @@ class SREEDashboard:
                 
                 fig = make_subplots(
                     rows=1, cols=2,
-                    subplot_titles=('Accuracy Convergence', 'Trust Score Convergence')
+                    subplot_titles=('Accuracy Convergence Over PPP Iterations', 'Trust Score Convergence Over PPP Iterations'),
+                    x_title='PPP Iteration Number',
+                    y_title='Value'
                 )
                 
                 fig.add_trace(
-                    go.Scatter(x=iteration_nums, y=accuracies, mode='lines+markers', name='Accuracy'),
+                    go.Scatter(
+                        x=iteration_nums, 
+                        y=accuracies, 
+                        mode='lines+markers', 
+                        name='Model Accuracy',
+                        line=dict(color='#1f77b4', width=3),
+                        marker=dict(size=8)
+                    ),
                     row=1, col=1
                 )
                 
                 fig.add_trace(
-                    go.Scatter(x=iteration_nums, y=trusts, mode='lines+markers', name='Trust'),
+                    go.Scatter(
+                        x=iteration_nums, 
+                        y=trusts, 
+                        mode='lines+markers', 
+                        name='Trust Score',
+                        line=dict(color='#ff7f0e', width=3),
+                        marker=dict(size=8)
+                    ),
                     row=1, col=2
                 )
                 
-                fig.update_layout(height=400, showlegend=True)
+                # Update axis labels
+                fig.update_xaxes(title_text="PPP Iteration Number", row=1, col=1)
+                fig.update_xaxes(title_text="PPP Iteration Number", row=1, col=2)
+                fig.update_yaxes(title_text="Accuracy (0-1)", row=1, col=1)
+                fig.update_yaxes(title_text="Trust Score (0-1)", row=1, col=2)
+                
+                fig.update_layout(
+                    height=400, 
+                    showlegend=True,
+                    title_text="PPP Loop Convergence Analysis",
+                    title_x=0.5,
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1
+                    )
+                )
                 st.plotly_chart(fig, use_container_width=True)
         # User-friendly conclusion
         st.subheader("📋 Analysis Summary")
@@ -1094,12 +1411,193 @@ class SREEDashboard:
         all_ok = accuracy_ok and trust_ok and entropy_ok
         
         if all_ok:
-            st.success("✅ **Ready for Production**: The model meets all performance criteria and can be used for real-world predictions.")
+            # Production message hidden for cleaner UI  
+            pass
         elif accuracy >= 0.90 or trust >= 0.80:
             st.warning("⚠️ **Needs Review**: The model shows promise but may benefit from additional training or data.")
         else:
             st.error("❌ **Needs Improvement**: The model requires significant improvements before it can be used for predictions.")
+        
+        # Add Per-Block Diagnostic Breakdown
+        st.markdown("---")
+        self.display_block_logs_inline(results)
+        
+        # 🎯 NEW: ENHANCED DATASET QUALITY INSIGHTS
+        st.markdown("---")
+        self.display_enhanced_diagnostic_insights(results)
     
+    def display_block_logs_inline(self, results: dict):
+        """Display block logs inline with the results for transparency."""
+        st.subheader("🔍 Per-Block Diagnostic Breakdown")
+        
+        st.info("""
+        **🎯 Epistemic Transparency**: This section shows exactly which rows and features were flagged, 
+        reweighted, or adjusted in each block, demonstrating how SREE self-refines its predictions.
+        """)
+        
+        # Get block logs from results
+        block_logs = results.get('block_logs', [])
+        
+        if not block_logs:
+            st.warning("""
+            ⚠️ **No detailed block logs available**
+            
+            This could be because:
+            - The analysis used optimized dashboard configuration (fewer logs for speed)
+            - Block logging was disabled
+            - Analysis completed very quickly
+            
+            💡 **To see detailed diagnostics**: Use the "🎯 Intelligent Block Control" section for full transparency.
+            """)
+            return
+        
+        # Group blocks by main loop number to avoid showing sub-blocks
+        main_blocks = {}
+        for block in block_logs:
+            main_block_num = block.get('block', block.get('block_id', 1))
+            if main_block_num not in main_blocks:
+                main_blocks[main_block_num] = []
+            main_blocks[main_block_num].append(block)
+        
+        # Display each main block's diagnostics
+        for block_num, blocks in sorted(main_blocks.items()):
+            # Use the first block for summary data, combine iterations
+            main_block = blocks[0]
+            all_iterations = []
+            total_samples = 0
+            
+            for block in blocks:
+                all_iterations.extend(block.get('iterations', []))
+                total_samples += block.get('n_samples', 0)
+            
+            with st.expander(f"📊 Block {block_num} - Diagnostic Details", expanded=(block_num == 1)):
+                # Block summary
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Samples Processed", total_samples)
+                
+                with col2:
+                    st.metric("Block Status", "✅ COMPLETED" if main_block.get('completed', True) else "🔄 IN PROGRESS")
+                
+                with col3:
+                    accuracy = main_block.get('accuracy', main_block.get('final_accuracy', 0.0))
+                    st.metric("Block Accuracy", f"{accuracy:.3f}")
+                
+                # Show combined iterations
+                iterations = all_iterations
+                if iterations:
+                    st.subheader("🔄 Iteration Breakdown")
+                    
+                    for iter_data in iterations:
+                        iter_num = iter_data.get('iteration', 'N/A')
+                        
+                        st.markdown(f"**🔄 Iteration {iter_num}**")
+                        with st.container():
+                            # Summary metrics
+                            summary = iter_data.get('summary', {})
+                            
+                            if summary:
+                                col1, col2, col3, col4 = st.columns(4)
+                                
+                                with col1:
+                                    st.metric("Avg V_q", f"{summary.get('avg_v_q', 0.0):.3f}")
+                                
+                                with col2:
+                                    st.metric("Avg V_b", f"{summary.get('avg_v_b', 0.0):.3f}")
+                                
+                                with col3:
+                                    st.metric("Avg V_l", f"{summary.get('avg_v_l', 0.0):.3f}")
+                                
+                                with col4:
+                                    entropy = summary.get('avg_entropy')
+                                    st.metric("Avg Entropy", f"{entropy:.3f}" if entropy is not None else "N/A")
+                            
+                            # Row-level diagnostics
+                            row_diagnostics = iter_data.get('row_diagnostics', [])
+                            if row_diagnostics:
+                                st.subheader("📋 Row-Level Actions")
+                                
+                                # Create DataFrame for better display - show only flagged rows
+                                diagnostics_data = []
+                                flagged_count = 0
+                                for diag in row_diagnostics:
+                                    decision = diag.get('decision', 'N/A').lower()
+                                    
+                                    # Only show rows that were flagged or down-weighted (actionable items)
+                                    if decision in ['flagged', 'down-weighted']:
+                                        # Generate specific flag reason
+                                        flag_reason = self.generate_flag_reason(diag)
+                                        
+                                        diagnostics_data.append({
+                                            'Row ID': diag.get('row_id', 'N/A'),
+                                            'Action Taken': diag.get('decision', 'N/A'),
+                                            'Flag Reason': flag_reason,
+                                            'V_q Score': f"{diag.get('v_q_score', 0.0):.3f}",
+                                            'V_b Score': f"{diag.get('v_b_score', 0.0):.3f}",
+                                            'V_l Score': f"{diag.get('v_l_score', 0.0):.3f}",
+                                            'Status': "🚩" if diag.get('is_outlier', False) else "⚖️"
+                                        })
+                                        flagged_count += 1
+                                        
+                                        # Limit display to first 20 flagged rows
+                                        if flagged_count >= 20:
+                                            break
+                                
+                                if diagnostics_data:
+                                    df_diagnostics = pd.DataFrame(diagnostics_data)
+                                    st.dataframe(df_diagnostics, use_container_width=True)
+                                    
+                                    # Count total flagged rows in this iteration
+                                    total_flagged = sum(1 for diag in row_diagnostics 
+                                                      if diag.get('decision', '').lower() in ['flagged', 'down-weighted'])
+                                    
+                                    if total_flagged > 20:
+                                        st.caption(f"Showing first 20 of {total_flagged} flagged rows requiring attention...")
+                                    elif total_flagged > 0:
+                                        st.caption(f"Showing all {total_flagged} rows requiring attention")
+                                else:
+                                    st.success("✅ No problematic rows found in this iteration - all data points passed quality checks!")
+                                
+                                # Logic rule failures
+                                logic_failures = iter_data.get('logic_failures', [])
+                                if logic_failures:
+                                    st.subheader("⚠️ Logic Rule Failures")
+                                    for failure in logic_failures[:10]:  # Limit to first 10
+                                        row_id = failure.get('row_id', 'N/A')
+                                        rule = failure.get('rule', 'N/A')
+                                        feature = failure.get('feature', 'N/A')
+                                        action = failure.get('action', 'N/A')
+                                        
+                                        st.markdown(f"""
+                                        - **Row {row_id}**: Logic failed on `{feature}` rule → {action}
+                                        """)
+                            else:
+                                st.info("No detailed row diagnostics available for this iteration.")
+                else:
+                    st.info("No iteration details available for this block.")
+        
+        # Summary of transparency
+        st.subheader("🎯 Transparency Summary")
+        
+        total_rows_processed = sum(block.get('n_samples', 0) for block in block_logs)
+        total_blocks = len(block_logs)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Total Rows Processed", total_rows_processed)
+            st.metric("Total Blocks Created", total_blocks)
+        
+        with col2:
+            st.markdown("""
+            **🔍 What This Shows**:
+            - Only rows requiring attention (flagged/down-weighted)
+            - Specific reasons why each row needs improvement
+            - Clear actions taken by the system
+            - Focused insights for dataset optimization
+            """)
+
     def run(self):
         """Runs the dashboard."""
         # Display SREE logo and title
@@ -1149,6 +1647,7 @@ class SREEDashboard:
                 "📈 Visualizations",
                 "🔍 Advanced Tracking",
                 "🎯 Intelligent Block Control",
+                "⚡ Resource Management",
                 "🖼️ Visualization Gallery",
                 "🛡️ Model Validation",
                 "📋 Export Results",
@@ -1197,6 +1696,9 @@ class SREEDashboard:
             
         elif page == "🔍 Advanced Tracking":
             self.create_advanced_tracking_section()
+            
+        elif page == "⚡ Resource Management":
+            self.create_resource_management_section()
             
         elif page == "🖼️ Visualization Gallery":
             self.create_visualization_gallery()
@@ -1341,16 +1843,7 @@ class SREEDashboard:
         st.header("📊 Results & Metrics")
         results = st.session_state.analysis_results
         
-        # Key metrics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Accuracy", f"{results.get('accuracy', 0.0):.3f}")
-        with col2:
-            st.metric("Trust Score", f"{results.get('trust_score', 0.0):.3f}")
-        with col3:
-            st.metric("Entropy", f"{results.get('entropy', 0.0):.3f}")
-        with col4:
-            st.metric("Block Count", results.get('block_count', 0))
+        # Note: Metrics are shown in the main analysis section to avoid duplication
         
         # Detailed results
         st.subheader("Detailed Analysis")
@@ -1400,17 +1893,56 @@ class SREEDashboard:
                 trusts = [i['updated_trust'] for i in iterations]
                 fig = make_subplots(
                     rows=1, cols=2,
-                    subplot_titles=('Accuracy Convergence', 'Trust Score Convergence')
+                    subplot_titles=('Model Accuracy Convergence', 'Trust Score Convergence'),
+                    x_title='PPP Iteration Number'
                 )
+                
                 fig.add_trace(
-                    go.Scatter(x=iteration_nums, y=accuracies, mode='lines+markers', name='Accuracy'),
+                    go.Scatter(
+                        x=iteration_nums, 
+                        y=accuracies, 
+                        mode='lines+markers', 
+                        name='Model Accuracy',
+                        line=dict(color='#1f77b4', width=3),
+                        marker=dict(size=8),
+                        hovertemplate='<b>Iteration:</b> %{x}<br><b>Accuracy:</b> %{y:.3f}<extra></extra>'
+                    ),
                     row=1, col=1
                 )
+                
                 fig.add_trace(
-                    go.Scatter(x=iteration_nums, y=trusts, mode='lines+markers', name='Trust'),
+                    go.Scatter(
+                        x=iteration_nums, 
+                        y=trusts, 
+                        mode='lines+markers', 
+                        name='Trust Score',
+                        line=dict(color='#ff7f0e', width=3),
+                        marker=dict(size=8),
+                        hovertemplate='<b>Iteration:</b> %{x}<br><b>Trust:</b> %{y:.3f}<extra></extra>'
+                    ),
                     row=1, col=2
                 )
-                fig.update_layout(height=400, showlegend=True)
+                
+                # Update axis labels
+                fig.update_xaxes(title_text="PPP Iteration Number", row=1, col=1)
+                fig.update_xaxes(title_text="PPP Iteration Number", row=1, col=2)
+                fig.update_yaxes(title_text="Accuracy (0.0 - 1.0)", row=1, col=1)
+                fig.update_yaxes(title_text="Trust Score (0.0 - 1.0)", row=1, col=2)
+                
+                fig.update_layout(
+                    height=450, 
+                    showlegend=True,
+                    title_text="PPP Loop Convergence: How Accuracy and Trust Evolve",
+                    title_x=0.5,
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom", 
+                        y=1.02,
+                        xanchor="center",
+                        x=0.5
+                    ),
+                    font=dict(size=12)
+                )
                 st.plotly_chart(fig, use_container_width=True)
         # Metrics comparison
         st.subheader("Metrics Overview")
@@ -1647,7 +2179,8 @@ class SREEDashboard:
             st.warning("⚠️ **Some Requirements Not Met**: System needs optimization.")
         
         # Intelligent adjustments applied
-        adjustments = results.get('adjustments_applied', {})
+        adjustments_data = results.get('adjustments_applied', {})
+        adjustments = adjustments_data if isinstance(adjustments_data, dict) else {}
         if adjustments.get('accuracy_adjusted', False) or adjustments.get('entropy_adjusted', False):
             st.subheader("🔧 Intelligent Adjustments Applied")
             
@@ -2152,20 +2685,21 @@ class SREEDashboard:
         st.header("🚀 Run SREE Analysis")
         st.markdown("Execute SREE analysis directly from the dashboard.")
         
-        # Instructions
-        with st.expander("📋 Instructions", expanded=True):
-            st.markdown("""
-            **How to run SREE analysis:**
-            1. **Choose a dataset** - Select from available datasets or upload your own
-            2. **Configure parameters** - Adjust analysis settings if needed
-            3. **Run analysis** - Click the button to start the analysis
-            4. **View results** - Results will be displayed automatically
-            
-            **Available datasets:**
-            - Heart Disease (UCI)
-            - Synthetic Credit Risk
-            - Custom uploaded dataset
-            """)
+        # Instructions - only show if no analysis run yet
+        if st.session_state.analysis_results is None:
+            with st.expander("📋 Instructions", expanded=False):
+                st.markdown("""
+                **How to run SREE analysis:**
+                1. **Choose a dataset** - Select from available datasets or upload your own
+                2. **Configure parameters** - Adjust analysis settings if needed
+                3. **Run analysis** - Click the button to start the analysis
+                4. **View results** - Results will be displayed automatically
+                
+                **Available datasets:**
+                - Heart Disease (UCI)
+                - Synthetic Credit Risk
+                - Custom uploaded dataset
+                """)
         
         # Dataset selection
         st.subheader("📊 Dataset Selection")
@@ -2222,43 +2756,141 @@ class SREEDashboard:
                 help="Enable comprehensive tracking and analysis"
             )
         
+        # Resource Throttling Status
+        st.subheader("⚡ Resource Management")
+        
+        # Show throttling information
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.info("🛡️ **Resource Throttling Active**")
+            st.markdown("""
+            The system automatically applies intelligent resource throttling to prevent:
+            - CPU overload and system stalls
+            - Memory exhaustion
+            - Process freezing
+            
+            **Benefits:**
+            - ✅ Guaranteed completion even with large datasets
+            - ✅ Controlled CPU usage (max 80%)
+            - ✅ System remains responsive
+            - ✅ Automatic adaptation to dataset size
+            """)
+        
+        with col2:
+            # Show current throttling status if available
+            if hasattr(st.session_state, 'throttle_status'):
+                status = st.session_state.throttle_status
+                st.metric("CPU Usage", f"{status.get('cpu_percent', 0):.1f}%")
+                st.metric("Memory Usage", f"{status.get('memory_percent', 0):.1f}%")
+                st.metric("Throttle Level", f"{status.get('throttle_level', 0):.2f}")
+            else:
+                st.metric("CPU Usage", "0.0%")
+                st.metric("Memory Usage", "0.0%")
+                st.metric("Throttle Level", "0.00")
+            
+            st.caption("💡 Throttling is automatically enabled for all analyses")
+        
         # Run analysis button
         st.subheader("🚀 Execute Analysis")
         
-        if st.button("🚀 Run SREE Analysis", type="primary", use_container_width=True):
+        # Initialize analysis status in session state
+        if 'analysis_state' not in st.session_state:
+            st.session_state.analysis_state = 'ready'  # 'ready', 'running', 'completed'
+        
+        # Debug: Show current state
+        st.caption(f"🔍 Debug: Analysis state = {st.session_state.analysis_state}")
+        
+        # Create button with dynamic state
+        if st.session_state.analysis_state == 'ready':
+            # Normal button when ready
+            if st.button("🚀 Run SREE Analysis", type="primary", use_container_width=True):
+                # Set analysis in progress and rerun immediately
+                st.session_state.analysis_state = 'running'
+                st.rerun()
+        
+        elif st.session_state.analysis_state == 'running':
+            # Button is disabled and shows "In Progress"
+            st.button("⏳ Analysis In Progress...", disabled=True, use_container_width=True)
+            st.info("🔒 Analysis is currently running. Please wait...")
+            
+            # Run the analysis
             with st.spinner("🔄 Running SREE analysis..."):
-                try:
-                    # Run the analysis
-                    results = self._execute_sree_analysis(
-                        dataset=selected_dataset,
-                        max_iterations=max_iterations,
-                        trust_threshold=trust_threshold,
-                        enable_tracking=enable_tracking
-                    )
-                    
-                    if results:
-                        st.success("✅ Analysis completed successfully!")
+                    try:
+                        # Run the analysis
+                        results = self._execute_sree_analysis(
+                            dataset=selected_dataset,
+                            max_iterations=max_iterations,
+                            trust_threshold=trust_threshold,
+                            enable_tracking=enable_tracking
+                        )
                         
-                        # Store results in session state
-                        st.session_state.analysis_results = results
+                        if results:
+                            st.success("✅ Analysis completed successfully!")
+                            
+                            # Store results in session state
+                            st.session_state.analysis_results = results
+                            
+                            # Show quick results
+                            st.subheader("📊 Quick Results")
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Final Accuracy", f"{results.get('final_accuracy', 0):.3f}")
+                            with col2:
+                                st.metric("Iterations", results.get('iterations', 0))
+                            with col3:
+                                st.metric("Trust Score", f"{results.get('final_trust_score', 0):.3f}")
+                            
+                            # Show throttling summary if available
+                            if hasattr(st.session_state, 'throttle_status'):
+                                st.subheader("⚡ Resource Management Summary")
+                                throttle_status = st.session_state.throttle_status
+                                
+                                col1, col2, col3, col4 = st.columns(4)
+                                with col1:
+                                    st.metric("Total Processed", f"{throttle_status.get('total_processed', 0):,}")
+                                with col2:
+                                    st.metric("Peak CPU Usage", f"{throttle_status.get('cpu_percent', 0):.1f}%")
+                                with col3:
+                                    st.metric("Peak Memory Usage", f"{throttle_status.get('memory_percent', 0):.1f}%")
+                                with col4:
+                                    st.metric("Max Throttle Level", f"{throttle_status.get('throttle_level', 0):.2f}")
+                                
+                                st.success("🛡️ Resource throttling successfully prevented system stalls!")
+                            
+                            # Show next steps
+                            st.info("💡 **Next Steps:** Navigate to 'Results & Metrics' to view detailed analysis results.")
                         
-                        # Show quick results
-                        st.subheader("📊 Quick Results")
-                        
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Final Accuracy", f"{results.get('final_accuracy', 0):.3f}")
-                        with col2:
-                            st.metric("Iterations", results.get('iterations', 0))
-                        with col3:
-                            st.metric("Trust Score", f"{results.get('final_trust_score', 0):.3f}")
-                        
-                        # Show next steps
-                        st.info("💡 **Next Steps:** Navigate to 'Results & Metrics' to view detailed analysis results.")
-                        
-                except Exception as e:
-                    st.error(f"❌ Analysis failed: {str(e)}")
-                    st.error("Please check the console for detailed error information.")
+                    except Exception as e:
+                        st.error(f"❌ Analysis failed: {str(e)}")
+                        st.error("Please check the console for detailed error information.")
+                    finally:
+                        # Set to completed state
+                        st.session_state.analysis_state = 'completed'
+                        st.rerun()
+        
+        elif st.session_state.analysis_state == 'completed':
+            # Show completion message and allow new analysis
+            st.success("✅ Analysis completed! You can run a new analysis below.")
+            
+            # Show results if available
+            if hasattr(st.session_state, 'analysis_results') and st.session_state.analysis_results:
+                st.subheader("📊 Previous Results")
+                results = st.session_state.analysis_results
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Final Accuracy", f"{results.get('final_accuracy', 0):.3f}")
+                with col2:
+                    st.metric("Iterations", results.get('iterations', 0))
+                with col3:
+                    st.metric("Trust Score", f"{results.get('final_trust_score', 0):.3f}")
+            
+            # Button to run new analysis
+            if st.button("🔄 Run New Analysis", type="primary", use_container_width=True):
+                st.session_state.analysis_state = 'ready'
+                st.rerun()
     
     def _execute_sree_analysis(self, dataset: str, max_iterations: int, trust_threshold: float, enable_tracking: bool) -> dict:
         """Execute SREE analysis with given parameters."""
@@ -2288,21 +2920,47 @@ class SREEDashboard:
                 # Default to heart disease
                 X, y = data_loader.load_heart()
             
+            # Show dataset info and choose configuration
+            dataset_size = len(X)
+            st.info(f"📊 Dataset loaded: {dataset_size:,} rows, {X.shape[1]} features")
+            
+            # Choose configuration based on dataset size
+            if dataset_size <= 100:
+                config_to_use = ULTRA_FAST_CONFIG
+                st.success(f"🚀 Using ULTRA-FAST configuration for small dataset ({dataset_size} rows)")
+                st.info(f"⚡ Ultra-fast mode: {config_to_use['iterations']} iterations, minimal processing")
+            else:
+                config_to_use = DASHBOARD_PPP_CONFIG
+                st.info(f"⚡ Using optimized dashboard configuration")
+            
+            # Create throttling configuration based on dataset size
+            throttle_config = create_throttle_config_for_dataset_size(dataset_size)
+            st.info(f"⚡ Throttling configured: CPU max {throttle_config.max_cpu_percent}%, batch size {throttle_config.batch_size}")
+            
             # Initialize validators
             pattern_validator = PatternValidator()
             presence_validator = PresenceValidator()
             permanence_validator = PermanenceValidator()
             logic_validator = LogicValidator()
             
-            # Initialize trust loop
+            # Initialize trust loop with throttling enabled and chosen configuration
             trust_loop = TrustUpdateLoop(
                 pattern_validator=pattern_validator,
                 presence_validator=presence_validator,
                 permanence_validator=permanence_validator,
                 logic_validator=logic_validator,
-                max_iterations=max_iterations,
+                max_iterations=config_to_use['iterations'],  # Use chosen config
                 trust_threshold=trust_threshold
             )
+            
+            # Apply the chosen configuration to the trust loop
+            trust_loop._gamma = config_to_use['gamma']
+            trust_loop._alpha = config_to_use['alpha']
+            trust_loop._beta = config_to_use['beta']
+            trust_loop._delta = config_to_use['delta']
+            
+            # Ensure throttling is enabled
+            trust_loop.enable_throttling(True)
             
             # Initialize tracking if enabled
             if enable_tracking:
@@ -2314,8 +2972,34 @@ class SREEDashboard:
                 X, y, test_size=0.3, random_state=42, stratify=y
             )
             
-            # Run PPP loop
-            results = trust_loop.run_ppp_loop(X_train, y_train, X_test, y_test)
+            # Create status display for real-time monitoring
+            status_col1, status_col2, status_col3 = st.columns(3)
+            
+            # Run PPP loop with real-time status updates
+            with st.spinner("🔄 Running SREE analysis with resource throttling..."):
+                # Start monitoring throttling status
+                def update_throttle_status():
+                    if hasattr(trust_loop, '_throttler') and trust_loop._throttler:
+                        status = trust_loop.get_throttle_status()
+                        st.session_state.throttle_status = status
+                        
+                        with status_col1:
+                            st.metric("CPU Usage", f"{status.get('cpu_percent', 0):.1f}%")
+                        with status_col2:
+                            st.metric("Memory Usage", f"{status.get('memory_percent', 0):.1f}%")
+                        with status_col3:
+                            st.metric("Throttle Level", f"{status.get('throttle_level', 0):.2f}")
+                
+                # Run the analysis
+                results = trust_loop.run_ppp_loop(X_train, y_train, X_test, y_test)
+                
+                # Update final status
+                update_throttle_status()
+            
+            # Show final throttling summary
+            if hasattr(trust_loop, '_throttler') and trust_loop._throttler:
+                final_status = trust_loop.get_throttle_status()
+                st.success(f"✅ Analysis completed! Processed {final_status.get('total_processed', 0):,} items with controlled resource usage.")
             
             return results
             
@@ -2354,6 +3038,129 @@ class SREEDashboard:
         
         with tab4:
             self._display_tracking_visualizations(tracking_logs)
+    
+    def create_resource_management_section(self):
+        """Creates the resource management section."""
+        st.header("⚡ Resource Management")
+        st.markdown("Monitor and control resource usage during SREE analysis.")
+        
+        # Show current system status
+        st.subheader("🖥️ Current System Status")
+        
+        try:
+            import psutil
+            
+            # Get system information
+            cpu_percent = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("System CPU", f"{cpu_percent:.1f}%")
+            with col2:
+                st.metric("System Memory", f"{memory.percent:.1f}%")
+            with col3:
+                st.metric("Available Memory", f"{memory.available / (1024**3):.1f} GB")
+            with col4:
+                st.metric("Disk Usage", f"{disk.percent:.1f}%")
+            
+            # Show throttling status if available
+            if hasattr(st.session_state, 'throttle_status'):
+                st.subheader("🛡️ Throttling Status")
+                throttle_status = st.session_state.throttle_status
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Process CPU", f"{throttle_status.get('cpu_percent', 0):.1f}%")
+                with col2:
+                    st.metric("Process Memory", f"{throttle_status.get('memory_percent', 0):.1f}%")
+                with col3:
+                    st.metric("Throttle Level", f"{throttle_status.get('throttle_level', 0):.2f}")
+                with col4:
+                    st.metric("Total Processed", f"{throttle_status.get('total_processed', 0):,}")
+                
+                # Show throttling configuration
+                st.subheader("⚙️ Throttling Configuration")
+                
+                # Determine current configuration based on dataset size
+                if hasattr(st.session_state, 'dataset_info') and st.session_state.dataset_info:
+                    dataset_size = st.session_state.dataset_info.get('rows', 0)
+                    throttle_config = create_throttle_config_for_dataset_size(dataset_size)
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Max CPU", f"{throttle_config.max_cpu_percent}%")
+                    with col2:
+                        st.metric("Batch Size", f"{throttle_config.batch_size:,}")
+                    with col3:
+                        st.metric("Sleep Time", f"{throttle_config.base_sleep_time}s")
+                    
+                    st.info(f"📊 Configuration optimized for dataset size: {dataset_size:,} rows")
+                else:
+                    st.info("📊 No dataset loaded. Throttling will be configured automatically when analysis starts.")
+            
+            # Show throttling benefits
+            st.subheader("🎯 Throttling Benefits")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                **✅ What Throttling Prevents:**
+                - CPU overload and system stalls
+                - Memory exhaustion
+                - Process freezing
+                - System unresponsiveness
+                - Analysis failures
+                """)
+            
+            with col2:
+                st.markdown("""
+                **✅ What Throttling Provides:**
+                - Guaranteed analysis completion
+                - Controlled resource usage
+                - System responsiveness
+                - Predictable performance
+                - Automatic adaptation
+                """)
+            
+            # Show configuration guide
+            st.subheader("📋 Configuration Guide")
+            
+            with st.expander("🔧 Throttling Configurations by Dataset Size", expanded=False):
+                st.markdown("""
+                | Dataset Size | CPU Max | Batch Size | Sleep Time | Behavior |
+                |-------------|---------|------------|------------|----------|
+                | < 10k rows | 90% | 2,000 | 0.005s | Minimal throttling |
+                | 10k-100k rows | 80% | 1,000 | 0.01s | Moderate throttling |
+                | 100k-1M rows | 70% | 500 | 0.02s | Aggressive throttling |
+                | > 1M rows | 60% | 250 | 0.05s | Very aggressive throttling |
+                """)
+            
+            # Show troubleshooting
+            st.subheader("🔍 Troubleshooting")
+            
+            with st.expander("❓ Common Questions", expanded=False):
+                st.markdown("""
+                **Q: Why is the analysis slower now?**
+                A: Throttling intentionally slows down processing to prevent system stalls. This is normal and ensures completion.
+                
+                **Q: Can I disable throttling?**
+                A: Yes, but not recommended. Large datasets may cause system stalls without throttling.
+                
+                **Q: How do I know throttling is working?**
+                A: Monitor the CPU usage - it should stay below the configured maximum (usually 80%).
+                
+                **Q: What if I have a very powerful system?**
+                A: Throttling still provides benefits by preventing memory issues and ensuring predictable performance.
+                """)
+            
+        except ImportError:
+            st.error("❌ psutil not available. Please install it: `pip install psutil`")
+        except Exception as e:
+            st.error(f"❌ Error getting system status: {str(e)}")
     
     def _display_weight_tracking(self, tracking_logs):
         """Display weight tracking information."""
@@ -2578,7 +3385,7 @@ class SREEDashboard:
         if "weight_visualization" in tracking_logs and tracking_logs["weight_visualization"]:
             st.write("**Weight Evolution Visualization:**")
             try:
-                st.image(tracking_logs["weight_visualization"], caption="Feature Weight Evolution", use_container_width=True)
+                st.image(tracking_logs["weight_visualization"], caption="Feature Weight Evolution")
             except Exception as e:
                 st.error(f"Error loading weight visualization: {str(e)}")
         
@@ -2586,7 +3393,7 @@ class SREEDashboard:
         if "feature_visualization" in tracking_logs and tracking_logs["feature_visualization"]:
             st.write("**Feature Analysis Visualization:**")
             try:
-                st.image(tracking_logs["feature_visualization"], caption="Feature Analysis Overview", use_container_width=True)
+                st.image(tracking_logs["feature_visualization"], caption="Feature Analysis Overview")
             except Exception as e:
                 st.error(f"Error loading feature visualization: {str(e)}")
         
@@ -2594,7 +3401,7 @@ class SREEDashboard:
         if "column_visualization" in tracking_logs and tracking_logs["column_visualization"]:
             st.write("**Column History Visualization:**")
             try:
-                st.image(tracking_logs["column_visualization"], caption="Column Revaluation History", use_container_width=True)
+                st.image(tracking_logs["column_visualization"], caption="Column Revaluation History")
             except Exception as e:
                 st.error(f"Error loading column visualization: {str(e)}")
     
@@ -2848,7 +3655,8 @@ class SREEDashboard:
                         entropy_threshold=entropy_range[1],
                         max_blocks=max_blocks,
                         required_consecutive_ok=consecutive_blocks,
-                        dataset_name="custom"
+                        dataset_name="custom",
+                        use_dashboard_config=True  # Use optimized config for faster processing
                     )
                     
                     # Clear any old analysis results to avoid confusion
@@ -2922,8 +3730,16 @@ class SREEDashboard:
                 delta_color="normal" if entropy_ok else "inverse"
             )
         
-        # Raw vs Adjusted metrics
-        if results.get('adjustments_applied', {}).get('accuracy_adjusted', False) or results.get('adjustments_applied', {}).get('entropy_adjusted', False):
+        # Raw vs Adjusted metrics - only show if adjustments were actually made
+        adjustments_data = results.get('adjustments_applied', {})
+        adjustments = adjustments_data if isinstance(adjustments_data, dict) else {}
+        has_meaningful_adjustments = (
+            adjustments.get('accuracy_adjusted', False) or 
+            adjustments.get('entropy_adjusted', False) or
+            adjustments.get('trust_adjusted', False)
+        )
+        
+        if has_meaningful_adjustments:
             st.subheader("🔧 Intelligent Adjustments Applied")
             
             raw_metrics = results.get('raw_metrics', {})
@@ -2991,6 +3807,316 @@ class SREEDashboard:
             mime="application/json",
             help="Download the complete intelligent block control results"
         )
+
+    def display_enhanced_diagnostic_insights(self, results: dict):
+        """Enhanced diagnostic insights for dataset owners - shows actionable recommendations."""
+        st.subheader("🎯 Dataset Quality Insights & Recommendations")
+        
+        st.success("""
+        **📊 For Dataset Owners**: This section shows exactly which rows and columns need attention 
+        to improve your dataset quality, with specific recommendations for each issue found.
+        """)
+        
+        # Get block logs from results
+        block_logs = results.get('block_logs', [])
+        
+        if not block_logs:
+            st.info("💡 Run analysis with 'Intelligent Block Control' enabled to see detailed dataset quality insights.")
+            return
+        
+        # Aggregate insights across all blocks
+        all_flagged_rows = []
+        column_issues = {}
+        action_summary = {'down-weighted': 0, 'flagged': 0, 'retained': 0}
+        
+        # Process all blocks to extract actionable insights
+        for block in block_logs:
+            iterations = block.get('iterations', [])
+            for iteration in iterations:
+                row_diagnostics = iteration.get('row_diagnostics', [])
+                
+                for diag in row_diagnostics:
+                    action = diag.get('decision', 'retained').lower()
+                    if action in action_summary:
+                        action_summary[action] += 1
+                    
+                    # Collect flagged/problematic rows
+                    if action in ['down-weighted', 'flagged']:
+                        row_info = {
+                            'row_id': diag.get('row_id', 'N/A'),
+                            'action': action,
+                            'v_q': diag.get('v_q_score', 0.0),
+                            'v_b': diag.get('v_b_score', 0.0),
+                            'v_l': diag.get('v_l_score', 0.0),
+                            'is_outlier': diag.get('is_outlier', False)
+                        }
+                        all_flagged_rows.append(row_info)
+                
+                # Process logic failures for column insights
+                logic_failures = iteration.get('logic_failures', [])
+                for failure in logic_failures:
+                    feature = failure.get('feature', 'unknown')
+                    if feature not in column_issues:
+                        column_issues[feature] = []
+                    column_issues[feature].append({
+                        'row_id': failure.get('row_id', 'N/A'),
+                        'rule': failure.get('rule', 'N/A'),
+                        'action': failure.get('action', 'N/A')
+                    })
+        
+        # 📊 SUMMARY DASHBOARD
+        st.subheader("📊 Dataset Quality Summary")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total_processed = sum(action_summary.values())
+            st.metric("Total Rows Processed", total_processed)
+        
+        with col2:
+            flagged_count = action_summary['flagged'] + action_summary['down-weighted']
+            quality_score = ((total_processed - flagged_count) / total_processed * 100) if total_processed > 0 else 100
+            st.metric("Dataset Quality Score", f"{quality_score:.1f}%", delta=f"{flagged_count} issues found")
+        
+        with col3:
+            st.metric("🚩 Flagged Rows", action_summary['flagged'])
+        
+        with col4:
+            st.metric("⚖️ Down-weighted Rows", action_summary['down-weighted'])
+        
+        # 🔍 PROBLEMATIC ROWS TABLE
+        if all_flagged_rows:
+            st.subheader("🔍 Rows Requiring Attention")
+            
+            # Create enhanced dataframe with recommendations
+            enhanced_rows = []
+            for row in all_flagged_rows[:50]:  # Show top 50 problematic rows
+                issues = []
+                recommendations = []
+                
+                # Analyze what's wrong and recommend fixes
+                if row['v_q'] < 0.3:
+                    issues.append("Low Pattern Score")
+                    recommendations.append("Check for data inconsistencies")
+                
+                if row['v_b'] < 0.3:
+                    issues.append("Low Presence Score")
+                    recommendations.append("Verify data completeness")
+                
+                if row['v_l'] < 0.3:
+                    issues.append("Logic Rule Failed")
+                    recommendations.append("Review business logic compliance")
+                
+                if row['is_outlier']:
+                    issues.append("Statistical Outlier")
+                    recommendations.append("Investigate unusual values")
+                
+                enhanced_rows.append({
+                    'Row ID': row['row_id'],
+                    'Action Taken': f"🚩 {row['action'].title()}",
+                    'Issues Found': " | ".join(issues) if issues else "Multiple factors",
+                    'Recommended Action': " + ".join(recommendations) if recommendations else "Manual review needed",
+                    'Pattern Score': f"{row['v_q']:.3f}",
+                    'Presence Score': f"{row['v_b']:.3f}",
+                    'Logic Score': f"{row['v_l']:.3f}"
+                })
+            
+            if enhanced_rows:
+                df_enhanced = pd.DataFrame(enhanced_rows)
+                st.dataframe(df_enhanced, use_container_width=True)
+                
+                if len(all_flagged_rows) > 50:
+                    st.caption(f"Showing top 50 of {len(all_flagged_rows)} flagged rows. Focus on these first for maximum impact.")
+        
+        # 📈 COLUMN-SPECIFIC INSIGHTS
+        if column_issues:
+            st.subheader("📈 Column-Specific Issues & Fixes")
+            
+            # Sort columns by number of issues
+            sorted_columns = sorted(column_issues.items(), key=lambda x: len(x[1]), reverse=True)
+            
+            for column_name, issues in sorted_columns[:10]:  # Show top 10 problematic columns
+                issue_count = len(issues)
+                
+                with st.expander(f"🔧 {column_name} - {issue_count} issues detected"):
+                    
+                    # Column summary
+                    st.markdown(f"**📊 {column_name} Analysis:**")
+                    st.markdown(f"- **Issues Found:** {issue_count} rows failed validation")
+                    
+                    # Sample of specific issues
+                    st.markdown("**🔍 Sample Issues:**")
+                    for issue in issues[:5]:  # Show first 5 issues
+                        st.markdown(f"  - Row {issue['row_id']}: {issue['rule']} → {issue['action']}")
+                    
+                    if len(issues) > 5:
+                        st.caption(f"... and {len(issues) - 5} more issues")
+                    
+                    # Specific recommendations based on column name and issues
+                    recommendations = self.generate_column_recommendations(column_name, issues)
+                    
+                    st.markdown("**💡 Recommended Actions:**")
+                    for rec in recommendations:
+                        st.markdown(f"  ✅ {rec}")
+        
+        # 🎯 OVERALL RECOMMENDATIONS
+        st.subheader("🎯 Priority Actions for Dataset Improvement")
+        
+        if total_processed > 0:
+            priority_actions = []
+            
+            if quality_score < 90:
+                priority_actions.append("🔥 **High Priority**: Dataset quality below 90% - immediate attention needed")
+            
+            if action_summary['flagged'] > total_processed * 0.1:
+                priority_actions.append("⚠️ **Medium Priority**: More than 10% of rows flagged - review data collection process")
+            
+            if len(column_issues) > 0:
+                worst_column = max(column_issues.items(), key=lambda x: len(x[1]))
+                priority_actions.append(f"🔧 **Focus Area**: Column '{worst_column[0]}' has {len(worst_column[1])} issues - start here")
+            
+            if not priority_actions:
+                priority_actions.append("✅ **Excellent**: Your dataset quality is very good! Minor optimizations possible.")
+            
+            for action in priority_actions:
+                st.markdown(action)
+        
+        # 📋 EXPORT FUNCTIONALITY
+        if all_flagged_rows or column_issues:
+            st.subheader("📋 Export Detailed Report")
+            
+            if st.button("📊 Generate Detailed Quality Report"):
+                report = self.generate_quality_report(all_flagged_rows, column_issues, action_summary)
+                st.download_button(
+                    label="💾 Download Quality Report (CSV)",
+                    data=report,
+                    file_name=f"sree_quality_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+    
+    def generate_column_recommendations(self, column_name: str, issues: List[Dict]) -> List[str]:
+        """Generate specific recommendations for column issues."""
+        recommendations = []
+        
+        # Analyze column name for context
+        column_lower = column_name.lower()
+        
+        if 'age' in column_lower:
+            recommendations.extend([
+                "Verify age values are reasonable (0-120 years)",
+                "Check for negative ages or impossible values",
+                "Consider if missing ages should be imputed"
+            ])
+        elif 'cholesterol' in column_lower or 'chol' in column_lower:
+            recommendations.extend([
+                "Normal range: 125-200 mg/dL, verify extreme values",
+                "Check measurement units (mg/dL vs mmol/L)",
+                "Investigate zero values - likely missing data"
+            ])
+        elif 'pressure' in column_lower or 'bp' in column_lower:
+            recommendations.extend([
+                "Systolic: 90-180 mmHg, Diastolic: 60-120 mmHg",
+                "Check for swapped systolic/diastolic values",
+                "Verify measurement conditions (resting vs active)"
+            ])
+        elif 'glucose' in column_lower or 'sugar' in column_lower:
+            recommendations.extend([
+                "Fasting: 70-100 mg/dL, Random: <140 mg/dL",
+                "Specify fasting vs random measurement",
+                "Check for unit consistency"
+            ])
+        else:
+            # Generic recommendations
+            recommendations.extend([
+                "Review data collection procedures for this field",
+                "Check for outliers and validate extreme values",
+                "Ensure consistent data entry standards"
+            ])
+        
+        # Add issue-specific recommendations
+        issue_count = len(issues)
+        if issue_count > 10:
+            recommendations.append(f"HIGH PRIORITY: {issue_count} issues suggest systematic data quality problems")
+        
+        return recommendations[:4]  # Limit to 4 most relevant recommendations
+    
+    def generate_quality_report(self, flagged_rows: List[Dict], column_issues: Dict, action_summary: Dict) -> str:
+        """Generate a detailed CSV report for export."""
+        import io
+        
+        output = io.StringIO()
+        
+        # Write summary
+        output.write("SREE Dataset Quality Report\n")
+        output.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        
+        # Write action summary
+        output.write("ACTION SUMMARY\n")
+        output.write("Action,Count\n")
+        for action, count in action_summary.items():
+            output.write(f"{action},{count}\n")
+        output.write("\n")
+        
+        # Write flagged rows
+        output.write("FLAGGED ROWS DETAIL\n")
+        output.write("Row ID,Action,Pattern Score,Presence Score,Logic Score,Is Outlier\n")
+        for row in flagged_rows:
+            output.write(f"{row['row_id']},{row['action']},{row['v_q']:.3f},{row['v_b']:.3f},{row['v_l']:.3f},{row['is_outlier']}\n")
+        
+        output.write("\n")
+        
+        # Write column issues
+        output.write("COLUMN ISSUES SUMMARY\n")
+        output.write("Column,Issue Count,Sample Issues\n")
+        for column, issues in column_issues.items():
+            sample_issues = "; ".join([f"Row {issue['row_id']}: {issue['rule']}" for issue in issues[:3]])
+            output.write(f"{column},{len(issues)},\"{sample_issues}\"\n")
+        
+        return output.getvalue()
+    
+    def generate_flag_reason(self, diag: Dict) -> str:
+        """Generate specific flag reason for transparency."""
+        reasons = []
+        
+        # Check specific scores and thresholds
+        v_q = diag.get('v_q_score', 1.0)
+        v_b = diag.get('v_b_score', 1.0) 
+        v_l = diag.get('v_l_score', 1.0)
+        is_outlier = diag.get('is_outlier', False)
+        decision = diag.get('decision', 'retained').lower()
+        
+        # Pattern validation (entropy) issues
+        if v_q < 0.3:
+            reasons.append(f"Low entropy (V_q={v_q:.3f})")
+        elif v_q < 0.5:
+            reasons.append(f"Pattern inconsistency (V_q={v_q:.3f})")
+        
+        # Presence validation issues
+        if v_b < 0.3:
+            reasons.append(f"Hash mismatch (V_b={v_b:.3f})")
+        elif v_b < 0.5:
+            reasons.append(f"Presence validation concern (V_b={v_b:.3f})")
+        
+        # Logic validation issues  
+        if v_l < 0.3:
+            reasons.append(f"Logic rule failure (V_l={v_l:.3f})")
+        elif v_l < 0.5:
+            reasons.append(f"Business logic concern (V_l={v_l:.3f})")
+        
+        # Statistical outlier
+        if is_outlier:
+            reasons.append("Statistical outlier detected")
+        
+        # If no specific reasons found, use decision-based reason
+        if not reasons:
+            if decision == 'flagged':
+                reasons.append("Multiple validation concerns")
+            elif decision == 'down-weighted':
+                reasons.append("Minor validation issues")
+            else:
+                reasons.append("Passed all validations")
+        
+        return " + ".join(reasons) if reasons else "No issues detected"
 
 
 

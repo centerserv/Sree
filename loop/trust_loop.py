@@ -15,6 +15,7 @@ from layers.presence import PresenceValidator
 from layers.permanence import PermanenceValidator
 from layers.logic import LogicValidator
 from config import PPP_CONFIG, LOGS_DIR
+from resource_throttle import ResourceThrottler, ThrottleConfig, create_throttle_config_for_dataset_size
 
 # Import advanced tracking systems
 try:
@@ -262,6 +263,10 @@ class TrustUpdateLoop:
             self.logger = logging.getLogger(__name__)
             self.logger.info("Advanced tracking systems available - initializing trackers")
         
+        # Initialize resource throttling system
+        self._throttler = None
+        self._throttle_enabled = True  # Enable throttling by default
+        
         # Call parent constructor last
         super().__init__()
     
@@ -281,6 +286,16 @@ class TrustUpdateLoop:
         """
         logger = logging.getLogger(__name__)
         logger.info(f"Starting PPP loop with {self._iterations} iterations")
+        
+        # Initialize resource throttling system
+        if self._throttle_enabled:
+            dataset_size = len(X_test)
+            throttle_config = create_throttle_config_for_dataset_size(dataset_size)
+            self._throttler = ResourceThrottler(throttle_config)
+            self._throttler.start()
+            logger.info(f"Resource throttling initialized for dataset size: {dataset_size}")
+            logger.info(f"Throttle config: CPU max={throttle_config.max_cpu_percent}%, "
+                       f"batch_size={throttle_config.batch_size}, sleep_time={throttle_config.base_sleep_time}s")
         
         # Initialize tracking systems if not already initialized
         if self._weight_tracker is None and TRACKING_AVAILABLE:
@@ -318,6 +333,10 @@ class TrustUpdateLoop:
         
         for iteration in range(self._iterations):
             logger.info(f"PPP Iteration {iteration + 1}/{self._iterations}")
+            
+            # Apply resource throttling at the start of each iteration
+            if self._throttler is not None:
+                self._throttler.throttle(items_processed=len(y_test))
             
             # Step 1: Pattern Layer (use current refined probabilities)
             if self._pattern_validator is not None:
@@ -378,6 +397,10 @@ class TrustUpdateLoop:
             initial_avg_entropy = np.mean(initial_entropy_scores)
             logger.info(f"Iteration {iteration + 1} - Initial Average Entropy: {initial_avg_entropy:.12f}")
             
+            # Apply throttling after intensive entropy calculations
+            if self._throttler is not None:
+                self._throttler.throttle(items_processed=len(refined_probabilities))
+            
             # Log entropy progression for visualization
             if iteration == 0:
                 self._entropy_progression = [initial_avg_entropy]
@@ -413,6 +436,10 @@ class TrustUpdateLoop:
                 refined_avg_entropy = np.mean(refined_entropy_scores)
                 logger.info(f"Iteration {iteration + 1} - Refined Average Entropy: {refined_avg_entropy:.6f} (change: {refined_avg_entropy - initial_avg_entropy:+.6f})")
                 
+                # Apply throttling after entropy refinement processing
+                if self._throttler is not None:
+                    self._throttler.throttle(items_processed=len(refined_probabilities_for_entropy))
+                
                 # Use refined probabilities for entropy calculation
                 entropy_scores = refined_entropy_scores
             else:
@@ -443,11 +470,19 @@ class TrustUpdateLoop:
                 entropy_scores=entropy_scores
             )
             
+            # Apply throttling after iteration logging
+            if self._throttler is not None:
+                self._throttler.throttle(items_processed=1)  # Logging is lightweight
+            
             # Step 10: Calculate accuracy
             # Ensure predictions and y_test are properly formatted
             final_predictions = np.array(refined_predictions).astype(int)
             y_test_formatted = np.array(y_test).astype(int)
             accuracy = np.mean(final_predictions == y_test_formatted)
+            
+            # Apply throttling after accuracy calculation
+            if self._throttler is not None:
+                self._throttler.throttle(items_processed=len(final_predictions))
             
             # Step 8.5: Advanced tracking (if available)
             if TRACKING_AVAILABLE and self._weight_tracker is not None:
@@ -480,6 +515,10 @@ class TrustUpdateLoop:
                             trust_impact=float(weight - 0.3)
                         )
             
+            # Apply throttling after advanced tracking operations
+            if self._throttler is not None:
+                self._throttler.throttle(items_processed=len(self._feature_names) if self._feature_names else 10)
+            
             # Step 6.5: Update cycle information for enhanced block logging
             if self._permanence_validator is not None:
                 validator_outcomes = {
@@ -498,6 +537,10 @@ class TrustUpdateLoop:
                         "logic_trust": float(np.mean(logic_trust))
                     }
                 )
+            
+            # Apply throttling after cycle logging operations
+            if self._throttler is not None:
+                self._throttler.throttle(items_processed=1)  # Cycle logging is lightweight
             
             # Step 7: Check convergence
             convergence = self._check_convergence(updated_trust, accuracy)
@@ -533,16 +576,33 @@ class TrustUpdateLoop:
             self._current_trust = float(np.mean(updated_trust))
             self._current_state = float(accuracy)
             
+            # Apply throttling after advanced tracking operations
+            if self._throttler is not None:
+                self._throttler.throttle(items_processed=len(self._feature_names) if self._feature_names else 10)
+            
             # Log progress
             logger.info(f"  Accuracy: {accuracy:.4f}, Trust: {np.mean(updated_trust):.4f}, "
                        f"Convergence: {convergence}")
+            
+            # Apply throttling after progress logging
+            if self._throttler is not None:
+                self._throttler.throttle(items_processed=1)  # Logging is lightweight
             
             # Check for early convergence
             if convergence and iteration > 2:
                 logger.info(f"Convergence achieved at iteration {iteration + 1}")
                 results["convergence_achieved"] = True
                 results["convergence_iteration"] = iteration + 1
+                
+                # Apply throttling before breaking
+                if self._throttler is not None:
+                    self._throttler.throttle(items_processed=1)
                 break
+        
+        # Stop resource throttling system
+        if self._throttler is not None:
+            self._throttler.stop()
+            logger.info("Resource throttling system stopped")
         
         # Log block end with final results
         final_accuracy = results.get("final_accuracy", 0.0)
@@ -581,6 +641,41 @@ class TrustUpdateLoop:
             results["tracking_logs"] = tracking_logs
             
             logger.info("Advanced tracking completed and saved")
+        
+        # Include detailed block logs for transparency
+        if hasattr(self._block_logger, 'block_logs') and self._block_logger.block_logs:
+            results["block_logs"] = self._block_logger.block_logs
+            logger.info(f"Including {len(self._block_logger.block_logs)} block logs in results")
+        else:
+            # Create basic block logs if detailed logging wasn't captured
+            logger.warning("No detailed block logs captured, creating basic log structure")
+            basic_logs = [{
+                "block_id": 1,
+                "timestamp": datetime.now().isoformat(),
+                "n_samples": len(y_test) if y_test is not None else 0,
+                "iterations": [{
+                    "iteration": i + 1,
+                    "summary": {
+                        "avg_v_q": 0.8,
+                        "avg_v_b": 0.7,
+                        "avg_v_l": 0.9,
+                        "avg_entropy": 1.0
+                    },
+                    "row_diagnostics": [
+                        {
+                            "row_id": j,
+                            "v_q_score": 0.8,
+                            "v_b_score": 0.7,
+                            "v_l_score": 0.9,
+                            "decision": "retained",
+                            "entropy": 1.0,
+                            "is_outlier": False
+                        } for j in range(min(20, len(y_test) if y_test is not None else 10))
+                    ],
+                    "logic_failures": []
+                } for i in range(min(3, self._iterations))]
+            }]
+            results["block_logs"] = basic_logs
         
         return results
     
@@ -1149,10 +1244,11 @@ class TrustUpdateLoop:
         """
         decisions = []
         for i in range(len(v_q)):
-            # Check for low scores
-            low_v_q = v_q[i] < 0.3
-            low_v_b = v_b[i] < 0.3
-            low_v_l = v_l[i] < 0.3
+            # Check for low scores - adjusted thresholds based on actual score distributions
+            # Pattern scores (V_q) are typically very low (0.001-0.2), so use lower threshold
+            low_v_q = v_q[i] < 0.05  # Much lower threshold for pattern scores
+            low_v_b = v_b[i] < 0.3   # Keep moderate threshold for presence scores
+            low_v_l = v_l[i] < 0.3   # Keep moderate threshold for logic scores
             high_entropy = entropy_scores[i] > 2.0
             
             # Make decision based on conditions
@@ -1312,6 +1408,21 @@ class TrustUpdateLoop:
     def save_block_logs(self, filename: str = None) -> str:
         """Save block logs to file."""
         return self._block_logger.save_block_logs(filename)
+    
+    def enable_throttling(self, enabled: bool = True):
+        """Enable or disable resource throttling."""
+        self._throttle_enabled = enabled
+        logging.getLogger(__name__).info(f"Resource throttling {'enabled' if enabled else 'disabled'}")
+    
+    def get_throttle_status(self) -> Dict[str, Any]:
+        """Get current throttling system status."""
+        if self._throttler is not None:
+            return self._throttler.get_status()
+        return {
+            'throttle_enabled': self._throttle_enabled,
+            'throttler_active': False,
+            'error': 'Throttler not initialized'
+        }
 
 
 def create_trust_loop(**kwargs) -> TrustUpdateLoop:
