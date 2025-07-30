@@ -79,6 +79,18 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
         logger.info(f"⚡ Ultra-fast mode: {config_to_use['iterations']} iterations, minimal processing")
         logger.info(f"🏃 Reduced max blocks: {max_blocks} (instead of 25)")
         logger.info(f"🎯 Quality-maintained thresholds: Accuracy≥{accuracy_threshold:.2f}, Trust≥{trust_threshold:.2f}, Entropy≤{entropy_threshold:.2f}")
+    elif dataset_size >= 10000:
+        from config import LARGE_DATASET_CONFIG as config_to_use
+        max_blocks = min(max_blocks, 3)  # Very few blocks for large datasets
+        # Relax thresholds for large datasets to ensure faster completion
+        accuracy_threshold = max(accuracy_threshold, 0.85)  # More relaxed for large datasets
+        trust_threshold = max(trust_threshold, 0.75)        # More relaxed for large datasets
+        entropy_threshold = min(entropy_threshold, 2.5)     # More relaxed for large datasets
+        required_consecutive_ok = 1  # Stop after first good block
+        logger.info(f"🚀 Using LARGE-DATASET configuration for large dataset ({dataset_size} rows)")
+        logger.info(f"⚡ Large dataset mode: {config_to_use['iterations']} iterations, optimized for speed")
+        logger.info(f"🏃 Reduced max blocks: {max_blocks} (instead of 25)")
+        logger.info(f"🎯 Relaxed thresholds for large dataset: Accuracy≥{accuracy_threshold:.2f}, Trust≥{trust_threshold:.2f}, Entropy≤{entropy_threshold:.2f}")
     elif use_dashboard_config or "custom" in dataset_name.lower():
         from config import DASHBOARD_PPP_CONFIG as config_to_use
         max_blocks = min(max_blocks, 8)  # Limit blocks for dashboard responsiveness

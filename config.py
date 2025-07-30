@@ -219,6 +219,39 @@ ULTRA_FAST_CONFIG = {
     }
 }
 
+# Large dataset configuration for datasets with 10,000+ rows
+LARGE_DATASET_CONFIG = {
+    "iterations": 8,   # Balanced iterations for large datasets
+    "gamma": 0.6,      # Balanced for convergence and quality
+    "alpha": 0.6,      # Balanced for convergence and quality
+    "beta": 0.6,       # Balanced permanence processing
+    "delta": 0.3,      # Balanced logic processing
+    "initial_trust": 0.85,
+    "initial_state": 0.80,
+    "presence": {
+        "entropy_threshold": 2.2,    # Maintain quality threshold
+        "min_confidence": 0.30,      # Maintain quality threshold
+        "entropy_penalty": 2.5,      # Balanced penalty
+        "refinement_factor": 0.85    # Balanced refinement
+    },
+    "permanence": {
+        "hash_algorithm": "md5",     # Faster hash algorithm
+        "block_size": 2000,          # Large block size for speed
+        "min_blocks": 1,             # Minimal blocks
+        "max_deviation": 0.03,       # Maintain quality
+        "convergence_threshold": 0.95, # Maintain quality
+        "consistency_threshold": 0.75  # Maintain quality
+    },
+    "logic": {
+        "min_conditions": 2,         # Maintain quality
+        "max_rules": 8,              # Balanced rules
+        "confidence_threshold": 0.75, # Maintain quality
+        "support_threshold": 0.25,   # Balanced threshold
+        "consistency_weight": 0.6,   # Balanced weight
+        "max_inconsistencies": 0.35  # Maintain quality
+    }
+}
+
 # Super-fast configuration for very small datasets (50 rows or less)
 SUPER_FAST_CONFIG = {
     "iterations": 2,   # Minimal iterations for speed while maintaining quality

@@ -26,7 +26,7 @@ import traceback
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from config import PPP_CONFIG, DASHBOARD_PPP_CONFIG, ULTRA_FAST_CONFIG, setup_logging
+from config import PPP_CONFIG, DASHBOARD_PPP_CONFIG, ULTRA_FAST_CONFIG, LARGE_DATASET_CONFIG, setup_logging
 from data_loader import DataLoader
 from layers.pattern import PatternValidator
 from layers.presence import PresenceValidator
@@ -2929,6 +2929,10 @@ class SREEDashboard:
                 config_to_use = ULTRA_FAST_CONFIG
                 st.success(f"🚀 Using ULTRA-FAST configuration for small dataset ({dataset_size} rows)")
                 st.info(f"⚡ Ultra-fast mode: {config_to_use['iterations']} iterations, minimal processing")
+            elif dataset_size >= 10000:
+                config_to_use = LARGE_DATASET_CONFIG
+                st.success(f"🚀 Using LARGE-DATASET configuration for large dataset ({dataset_size:,} rows)")
+                st.info(f"⚡ Large dataset mode: {config_to_use['iterations']} iterations, optimized for speed")
             else:
                 config_to_use = DASHBOARD_PPP_CONFIG
                 st.info(f"⚡ Using optimized dashboard configuration")
