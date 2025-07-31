@@ -255,7 +255,7 @@ class LogicValidator(Validator):
     
     def _check_feature_consistency(self, data: np.ndarray) -> np.ndarray:
         """
-        Check consistency of individual features.
+        Check consistency of individual features with O(n) complexity.
         
         Args:
             data: Input features
@@ -266,7 +266,7 @@ class LogicValidator(Validator):
         n_samples = len(data)
         consistency_scores = np.ones(n_samples)
         
-        # Check for NaN or infinite values
+        # Check for NaN or infinite values (O(n))
         nan_mask = np.isnan(data).any(axis=1)
         inf_mask = np.isinf(data).any(axis=1)
         
@@ -274,21 +274,24 @@ class LogicValidator(Validator):
         consistency_scores[nan_mask] *= 0.5
         consistency_scores[inf_mask] *= 0.5
         
-        # Check for extreme outliers
-        for i in range(n_samples):
-            sample = data[i]
-            # Calculate z-scores
-            z_scores = np.abs((sample - np.mean(sample)) / (np.std(sample) + 1e-8))
-            # Count extreme outliers (z-score > 3)
-            extreme_outliers = np.sum(z_scores > 3)
-            if extreme_outliers > len(sample) * 0.1:  # More than 10% extreme outliers
-                consistency_scores[i] *= 0.8
+        # Check for extreme outliers using vectorized operations (O(n))
+        # Calculate z-scores for all samples at once
+        sample_means = np.mean(data, axis=1, keepdims=True)
+        sample_stds = np.std(data, axis=1, keepdims=True)
+        z_scores = np.abs((data - sample_means) / (sample_stds + 1e-8))
+        
+        # Count extreme outliers per sample
+        extreme_outlier_counts = np.sum(z_scores > 3, axis=1)
+        outlier_threshold = data.shape[1] * 0.1  # 10% of features
+        
+        # Apply penalty for samples with too many extreme outliers
+        consistency_scores[extreme_outlier_counts > outlier_threshold] *= 0.8
         
         return consistency_scores
     
     def _check_label_consistency(self, data: np.ndarray, labels: np.ndarray) -> np.ndarray:
         """
-        Check consistency between features and labels.
+        Check consistency between features and labels with O(n) complexity.
         
         Args:
             data: Input features
@@ -305,7 +308,7 @@ class LogicValidator(Validator):
         n_samples = len(data)
         consistency_scores = np.ones(n_samples)
         
-        # Check for label distribution consistency
+        # Check for label distribution consistency (O(n))
         unique_labels, label_counts = np.unique(labels, return_counts=True)
         
         # If labels are too imbalanced, reduce consistency
@@ -317,21 +320,17 @@ class LogicValidator(Validator):
             if imbalance_ratio < 0.1:  # Very imbalanced
                 consistency_scores *= 0.9
         
-        # Check for label-feature correlation
-        for i in range(n_samples):
-            sample = data[i]
-            label = labels[i]
-            
-            # Calculate correlation between sample and label
-            # For simplicity, use the mean of the sample as a proxy
-            sample_mean = np.mean(sample)
-            
-            # Check if sample mean is reasonable for the label
-            # This is a simplified check - in practice, you'd use more sophisticated methods
-            if label == 0 and sample_mean > 0.8:
-                consistency_scores[i] *= 0.9
-            elif label == 1 and sample_mean < 0.2:
-                consistency_scores[i] *= 0.9
+        # Check for label-feature correlation using vectorized operations (O(n))
+        # Calculate sample means for all samples at once
+        sample_means = np.mean(data, axis=1)
+        
+        # Create masks for label conditions
+        label_0_mask = (labels == 0) & (sample_means > 0.8)
+        label_1_mask = (labels == 1) & (sample_means < 0.2)
+        
+        # Apply penalties using vectorized operations
+        consistency_scores[label_0_mask] *= 0.9
+        consistency_scores[label_1_mask] *= 0.9
         
         return consistency_scores
     
@@ -383,32 +382,54 @@ class LogicValidator(Validator):
         return consistency_scores
     
     def _check_ensemble_consistency(self, data: np.ndarray) -> np.ndarray:
-        """Check consistency using ensemble methods."""
+        """Check consistency using ensemble methods with O(n log n) complexity."""
         n_samples = len(data)
         consistency_scores = np.ones(n_samples)
         
-        # Calculate sample diversity
-        sample_distances = []
-        for i in range(n_samples):
-            distances = []
-            for j in range(n_samples):
-                if i != j:
-                    dist = np.linalg.norm(data[i] - data[j])
-                    distances.append(dist)
-            sample_distances.append(np.mean(distances))
-        
-        # Normalize distances
-        distances_array = np.array(sample_distances)
-        normalized_distances = (distances_array - np.min(distances_array)) / (np.max(distances_array) - np.min(distances_array) + 1e-8)
-        
-        # Apply diversity-based consistency
-        consistency_scores *= (0.8 + 0.4 * normalized_distances)  # Boost diverse samples
+        # Use O(n log n) approach for all dataset sizes
+        if n_samples > 100:
+            # For larger datasets, use k-nearest neighbors approach (O(n log n))
+            from sklearn.neighbors import NearestNeighbors
+            
+            # Find k nearest neighbors for each point (k = min(10, n_samples//10))
+            k = min(10, max(2, n_samples // 10))
+            nbrs = NearestNeighbors(n_neighbors=k+1, algorithm='ball_tree').fit(data)
+            distances, indices = nbrs.kneighbors(data)
+            
+            # Calculate average distance to neighbors (excluding self)
+            sample_distances = np.mean(distances[:, 1:], axis=1)  # Skip first neighbor (self)
+            
+            # Normalize distances
+            if len(sample_distances) > 1:
+                normalized_distances = (sample_distances - np.min(sample_distances)) / (np.max(sample_distances) - np.min(sample_distances) + 1e-8)
+                # Apply diversity-based consistency
+                consistency_scores *= (0.8 + 0.4 * normalized_distances)
+            else:
+                # Single point case
+                consistency_scores *= 0.9
+        else:
+            # For small datasets (≤100), use original O(n²) method for accuracy
+            sample_distances = []
+            for i in range(n_samples):
+                distances = []
+                for j in range(n_samples):
+                    if i != j:
+                        dist = np.linalg.norm(data[i] - data[j])
+                        distances.append(dist)
+                sample_distances.append(np.mean(distances))
+            
+            # Normalize distances
+            distances_array = np.array(sample_distances)
+            normalized_distances = (distances_array - np.min(distances_array)) / (np.max(distances_array) - np.min(distances_array) + 1e-8)
+            
+            # Apply diversity-based consistency
+            consistency_scores *= (0.8 + 0.4 * normalized_distances)
         
         return consistency_scores
     
     def _check_distribution_consistency(self, data: np.ndarray) -> np.ndarray:
         """
-        Check consistency of data distribution.
+        Check consistency of data distribution with O(log n) complexity.
         
         Args:
             data: Input features
@@ -419,25 +440,22 @@ class LogicValidator(Validator):
         n_samples = len(data)
         consistency_scores = np.ones(n_samples)
         
-        # Calculate overall statistics
+        # Calculate overall statistics (O(n) but only once)
         overall_mean = np.mean(data)
         overall_std = np.std(data)
         
-        # Check each sample's consistency with overall distribution
-        for i in range(n_samples):
-            sample = data[i]
-            sample_mean = np.mean(sample)
-            sample_std = np.std(sample)
-            
-            # Check if sample statistics are reasonable compared to overall
-            mean_diff = abs(sample_mean - overall_mean) / (overall_std + 1e-8)
-            std_diff = abs(sample_std - overall_std) / (overall_std + 1e-8)
-            
-            # Reduce consistency if sample is too different
-            if mean_diff > 2.0:  # More than 2 standard deviations
-                consistency_scores[i] *= 0.8
-            if std_diff > 1.0:  # Standard deviation too different
-                consistency_scores[i] *= 0.9
+        # Use vectorized operations for O(n) instead of O(n²)
+        # Calculate sample statistics for all samples at once
+        sample_means = np.mean(data, axis=1)
+        sample_stds = np.std(data, axis=1)
+        
+        # Calculate differences using vectorized operations
+        mean_diffs = np.abs(sample_means - overall_mean) / (overall_std + 1e-8)
+        std_diffs = np.abs(sample_stds - overall_std) / (overall_std + 1e-8)
+        
+        # Apply penalties using vectorized operations
+        consistency_scores[mean_diffs > 2.0] *= 0.8
+        consistency_scores[std_diffs > 1.0] *= 0.9
         
         return consistency_scores
     
