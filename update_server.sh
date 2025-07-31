@@ -90,18 +90,26 @@ run_on_vps "
     python3 visualization.py
 "
 
-# 5. Restart the service
+# 5. Configure server environment
+print_status "Configuring server environment for optimized performance..."
+run_on_vps "
+    cd /home/app/sree &&
+    echo 'SREE_SERVER_MODE=true' >> .env &&
+    echo 'export SREE_SERVER_MODE=true' >> ~/.bashrc
+"
+
+# 6. Restart the service
 print_status "Restarting SREE dashboard service..."
 run_on_vps "
     systemctl daemon-reload &&
     systemctl start sree-dashboard
 "
 
-# 6. Wait for service to start
+# 7. Wait for service to start
 print_status "Waiting for service to start..."
 sleep 10
 
-# 7. Check service status
+# 8. Check service status
 print_status "Checking service status..."
 SERVICE_STATUS=$(run_on_vps "systemctl is-active sree-dashboard")
 if [ "$SERVICE_STATUS" = "active" ]; then
@@ -112,7 +120,7 @@ else
     exit 1
 fi
 
-# 8. Test HTTP access
+# 9. Test HTTP access
 print_status "Testing HTTP access..."
 HTTP_STATUS=$(run_on_vps "curl -s -o /dev/null -w '%{http_code}' http://localhost:8501")
 if [ "$HTTP_STATUS" = "200" ]; then
@@ -122,7 +130,7 @@ else
     exit 1
 fi
 
-# 9. Display final information
+# 10. Display final information
 print_status "🎉 SREE Server update completed successfully!"
 echo ""
 echo "=== Server Information ==="

@@ -221,34 +221,67 @@ ULTRA_FAST_CONFIG = {
 
 # Large dataset configuration for datasets with 10,000+ rows
 LARGE_DATASET_CONFIG = {
-    "iterations": 12,  # Moderate iterations for large datasets
-    "gamma": 0.5,      # Standard for convergence
-    "alpha": 0.5,      # Standard for convergence
-    "beta": 0.7,       # Standard permanence processing
-    "delta": 0.4,      # Standard logic processing
+    "iterations": 8,   # Reduced iterations for server performance
+    "gamma": 0.6,      # Faster convergence
+    "alpha": 0.6,      # Faster convergence
+    "beta": 0.8,       # Faster permanence processing
+    "delta": 0.5,      # Faster logic processing
     "initial_trust": 0.85,
     "initial_state": 0.80,
     "presence": {
-        "entropy_threshold": 2.0,    # Standard threshold
-        "min_confidence": 0.35,      # Standard threshold
-        "entropy_penalty": 3.0,      # Standard penalty
-        "refinement_factor": 0.90    # Standard refinement
+        "entropy_threshold": 1.8,    # Slightly relaxed threshold
+        "min_confidence": 0.30,      # Relaxed threshold for speed
+        "entropy_penalty": 2.5,      # Reduced penalty
+        "refinement_factor": 0.85    # Faster refinement
     },
     "permanence": {
         "hash_algorithm": "md5",     # Faster hash algorithm
-        "block_size": 1000,          # Moderate block size for speed
-        "min_blocks": 2,             # Standard blocks
-        "max_deviation": 0.02,       # Standard quality
-        "convergence_threshold": 0.98, # Standard quality
-        "consistency_threshold": 0.75  # Standard quality
+        "block_size": 2000,          # Larger blocks for speed
+        "min_blocks": 1,             # Minimal blocks
+        "max_deviation": 0.03,       # Slightly relaxed quality
+        "convergence_threshold": 0.95, # Relaxed convergence
+        "consistency_threshold": 0.70  # Relaxed consistency
     },
     "logic": {
-        "min_conditions": 3,         # Standard conditions
-        "max_rules": 10,             # Standard rules
-        "confidence_threshold": 0.75, # Standard threshold
-        "support_threshold": 0.25,   # Standard threshold
-        "consistency_weight": 0.7,   # Standard weight
-        "max_inconsistencies": 0.30  # Standard quality
+        "min_conditions": 2,         # Reduced conditions
+        "max_rules": 6,              # Reduced rules
+        "confidence_threshold": 0.70, # Relaxed threshold
+        "support_threshold": 0.20,   # Relaxed threshold
+        "consistency_weight": 0.6,   # Reduced weight
+        "max_inconsistencies": 0.35  # Relaxed quality
+    }
+}
+
+# Server-optimized configuration for limited resources
+SERVER_OPTIMIZED_CONFIG = {
+    "iterations": 6,   # Minimal iterations for server performance
+    "gamma": 0.7,      # Very fast convergence
+    "alpha": 0.7,      # Very fast convergence
+    "beta": 0.9,       # Very fast permanence processing
+    "delta": 0.6,      # Very fast logic processing
+    "initial_trust": 0.85,
+    "initial_state": 0.80,
+    "presence": {
+        "entropy_threshold": 1.5,    # Relaxed threshold for speed
+        "min_confidence": 0.25,      # Relaxed threshold
+        "entropy_penalty": 2.0,      # Minimal penalty
+        "refinement_factor": 0.80    # Fast refinement
+    },
+    "permanence": {
+        "hash_algorithm": "md5",     # Fastest hash algorithm
+        "block_size": 3000,          # Very large blocks for speed
+        "min_blocks": 1,             # Single block when possible
+        "max_deviation": 0.05,       # Relaxed quality
+        "convergence_threshold": 0.90, # Relaxed convergence
+        "consistency_threshold": 0.65  # Relaxed consistency
+    },
+    "logic": {
+        "min_conditions": 1,         # Minimal conditions
+        "max_rules": 4,              # Minimal rules
+        "confidence_threshold": 0.65, # Relaxed threshold
+        "support_threshold": 0.15,   # Relaxed threshold
+        "consistency_weight": 0.5,   # Minimal weight
+        "max_inconsistencies": 0.40  # Relaxed quality
     }
 }
 

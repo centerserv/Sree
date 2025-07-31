@@ -80,17 +80,34 @@ def run_unified_block_creation(X: np.ndarray, y: np.ndarray,
         logger.info(f"🏃 Reduced max blocks: {max_blocks} (instead of 25)")
         logger.info(f"🎯 Quality-maintained thresholds: Accuracy≥{accuracy_threshold:.2f}, Trust≥{trust_threshold:.2f}, Entropy≤{entropy_threshold:.2f}")
     elif dataset_size >= 10000:
-        from config import LARGE_DATASET_CONFIG as config_to_use
-        max_blocks = min(max_blocks, 5)  # Moderate blocks for large datasets
-        # Use standard thresholds for large datasets to maintain quality
-        accuracy_threshold = max(accuracy_threshold, 0.90)  # Standard for large datasets
-        trust_threshold = max(trust_threshold, 0.80)        # Standard for large datasets
-        entropy_threshold = min(entropy_threshold, 2.0)     # Standard for large datasets
-        required_consecutive_ok = 2  # Standard requirement
-        logger.info(f"🚀 Using LARGE-DATASET configuration for large dataset ({dataset_size} rows)")
-        logger.info(f"⚡ Large dataset mode: {config_to_use['iterations']} iterations, balanced for speed and quality")
-        logger.info(f"🏃 Moderate max blocks: {max_blocks} (instead of 25)")
-        logger.info(f"🎯 Standard thresholds for large dataset: Accuracy≥{accuracy_threshold:.2f}, Trust≥{trust_threshold:.2f}, Entropy≤{entropy_threshold:.2f}")
+        # Check if running on server (limited resources)
+        import os
+        is_server = os.environ.get('SREE_SERVER_MODE', 'false').lower() == 'true'
+        
+        if is_server:
+            from config import SERVER_OPTIMIZED_CONFIG as config_to_use
+            max_blocks = min(max_blocks, 3)  # Minimal blocks for server performance
+            # Relaxed thresholds for server performance while maintaining acceptable quality
+            accuracy_threshold = max(accuracy_threshold, 0.85)  # Relaxed for server
+            trust_threshold = max(trust_threshold, 0.75)        # Relaxed for server
+            entropy_threshold = min(entropy_threshold, 2.2)     # Relaxed for server
+            required_consecutive_ok = 1  # Stop after first good block
+            logger.info(f"🖥️ Using SERVER-OPTIMIZED configuration for server environment ({dataset_size} rows)")
+            logger.info(f"⚡ Server mode: {config_to_use['iterations']} iterations, minimal processing for limited resources")
+            logger.info(f"🏃 Minimal max blocks: {max_blocks} (instead of 25)")
+            logger.info(f"🎯 Server-optimized thresholds: Accuracy≥{accuracy_threshold:.2f}, Trust≥{trust_threshold:.2f}, Entropy≤{entropy_threshold:.2f}")
+        else:
+            from config import LARGE_DATASET_CONFIG as config_to_use
+            max_blocks = min(max_blocks, 5)  # Moderate blocks for large datasets
+            # Use standard thresholds for large datasets to maintain quality
+            accuracy_threshold = max(accuracy_threshold, 0.90)  # Standard for large datasets
+            trust_threshold = max(trust_threshold, 0.80)        # Standard for large datasets
+            entropy_threshold = min(entropy_threshold, 2.0)     # Standard for large datasets
+            required_consecutive_ok = 2  # Standard requirement
+            logger.info(f"🚀 Using LARGE-DATASET configuration for large dataset ({dataset_size} rows)")
+            logger.info(f"⚡ Large dataset mode: {config_to_use['iterations']} iterations, balanced for speed and quality")
+            logger.info(f"🏃 Moderate max blocks: {max_blocks} (instead of 25)")
+            logger.info(f"🎯 Standard thresholds for large dataset: Accuracy≥{accuracy_threshold:.2f}, Trust≥{trust_threshold:.2f}, Entropy≤{entropy_threshold:.2f}")
     elif use_dashboard_config or "custom" in dataset_name.lower():
         from config import DASHBOARD_PPP_CONFIG as config_to_use
         max_blocks = min(max_blocks, 8)  # Limit blocks for dashboard responsiveness
