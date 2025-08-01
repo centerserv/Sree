@@ -154,9 +154,9 @@ class SREEDashboard:
         self.logger = setup_logging()
         self.timing_tracker = TimingTracker()  # Add timing tracker
         
-        # Initialize SREE components
+        # Initialize SREE components (lazy initialization for PatternValidator)
         self.data_loader = DataLoader()
-        self.pattern_validator = PatternValidator()
+        self.pattern_validator = None  # Will be initialized when needed
         self.presence_validator = PresenceValidator()
         self.permanence_validator = PermanenceValidator()
         self.logic_validator = LogicValidator()
@@ -1600,18 +1600,9 @@ class SREEDashboard:
 
     def run(self):
         """Runs the dashboard."""
-        # Display SREE logo and title
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            # Load the logo image
-            logo_path = Path(__file__).parent / "SREE-logo.png"
-            if logo_path.exists():
-                st.image(str(logo_path), width=100)
-            else:
-                st.error(f"Logo file not found: {logo_path}")
-        with col2:
-            st.title("SREE Dashboard")
-            st.markdown("**Self-Refining Epistemic Engine - Interactive Analysis**")
+        # Display title only (logo removed for academic use)
+        st.title("SREE Dashboard")
+        st.markdown("**Self-Refining Epistemic Engine - Interactive Analysis**")
         
         # Initialize session state for dataset
         if 'uploaded_df' not in st.session_state:
@@ -2942,7 +2933,7 @@ class SREEDashboard:
             st.info(f"⚡ Throttling configured: CPU max {throttle_config.max_cpu_percent}%, batch size {throttle_config.batch_size}")
             
             # Initialize validators
-            pattern_validator = PatternValidator()
+            pattern_validator = PatternValidator(input_size=X.shape[1])
             presence_validator = PresenceValidator()
             permanence_validator = PermanenceValidator()
             logic_validator = LogicValidator()
@@ -3634,15 +3625,15 @@ class SREEDashboard:
                     
                     # Initialize trust loop
                     from loop.trust_loop import create_trust_loop
-                    from layers.pattern import create_pattern_validator
-                    from layers.presence import create_presence_validator
-                    from layers.permanence import create_permanence_validator
-                    from layers.logic import create_logic_validator
+                    from layers.pattern import PatternValidator
+                    from layers.presence import PresenceValidator
+                    from layers.permanence import PermanenceValidator
+                    from layers.logic import LogicValidator
                     
-                    pattern_validator = create_pattern_validator()
-                    presence_validator = create_presence_validator()
-                    permanence_validator = create_permanence_validator()
-                    logic_validator = create_logic_validator()
+                    pattern_validator = PatternValidator(input_size=X.shape[1])
+                    presence_validator = PresenceValidator()
+                    permanence_validator = PermanenceValidator()
+                    logic_validator = LogicValidator()
                     
                     trust_loop = create_trust_loop(
                         validators=[pattern_validator, presence_validator, permanence_validator, logic_validator],
